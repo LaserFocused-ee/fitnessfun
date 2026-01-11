@@ -13,6 +13,9 @@ import '../features/exercise/presentation/screens/exercise_detail_screen.dart';
 import '../features/exercise/presentation/screens/exercise_form_screen.dart';
 import '../features/exercise/presentation/screens/exercise_library_screen.dart';
 import '../features/trainer/presentation/screens/trainer_home_screen.dart';
+import '../features/workout/presentation/screens/plan_builder_screen.dart';
+import '../features/workout/presentation/screens/plan_detail_screen.dart';
+import '../features/workout/presentation/screens/plan_list_screen.dart';
 import 'routes.dart';
 
 part 'router.g.dart';
@@ -155,9 +158,30 @@ GoRouter router(RouterRef ref) {
             ],
           ),
           GoRoute(
-            path: 'plans/create',
-            builder: (context, state) =>
-                const _PlaceholderScreen(title: 'Create Plan'),
+            path: 'plans',
+            builder: (context, state) => const PlanListScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                builder: (context, state) => const PlanBuilderScreen(),
+              ),
+              GoRoute(
+                path: ':planId',
+                builder: (context, state) {
+                  final planId = state.pathParameters['planId']!;
+                  return PlanDetailScreen(planId: planId);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final planId = state.pathParameters['planId']!;
+                      return PlanBuilderScreen(planId: planId);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

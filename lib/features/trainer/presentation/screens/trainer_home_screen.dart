@@ -81,7 +81,7 @@ class TrainerHomeScreen extends ConsumerWidget {
                       title: 'Plans',
                       subtitle: 'Workout plans',
                       color: colorScheme.tertiaryContainer,
-                      onTap: () => context.push('/trainer/plans/create'),
+                      onTap: () => context.push('/trainer/plans'),
                     ),
                   ],
                 );
