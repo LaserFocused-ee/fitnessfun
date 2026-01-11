@@ -9,6 +9,10 @@ import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/checkin/presentation/screens/checkin_form_screen.dart';
 import '../features/checkin/presentation/screens/checkin_history_screen.dart';
+import '../features/exercise/presentation/screens/exercise_detail_screen.dart';
+import '../features/exercise/presentation/screens/exercise_form_screen.dart';
+import '../features/exercise/presentation/screens/exercise_library_screen.dart';
+import '../features/trainer/presentation/screens/trainer_home_screen.dart';
 import 'routes.dart';
 
 part 'router.g.dart';
@@ -117,8 +121,7 @@ GoRouter router(RouterRef ref) {
       // Trainer routes
       GoRoute(
         path: AppRoutes.trainerHome,
-        builder: (context, state) =>
-            const _PlaceholderScreen(title: 'Trainer Home'),
+        builder: (context, state) => const TrainerHomeScreen(),
         routes: [
           GoRoute(
             path: 'clients',
@@ -127,8 +130,29 @@ GoRouter router(RouterRef ref) {
           ),
           GoRoute(
             path: 'exercises',
-            builder: (context, state) =>
-                const _PlaceholderScreen(title: 'Exercise Library'),
+            builder: (context, state) => const ExerciseLibraryScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                builder: (context, state) => const ExerciseFormScreen(),
+              ),
+              GoRoute(
+                path: ':exerciseId',
+                builder: (context, state) {
+                  final exerciseId = state.pathParameters['exerciseId']!;
+                  return ExerciseDetailScreen(exerciseId: exerciseId);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final exerciseId = state.pathParameters['exerciseId']!;
+                      return ExerciseFormScreen(exerciseId: exerciseId);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
           GoRoute(
             path: 'plans/create',
