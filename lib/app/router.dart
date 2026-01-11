@@ -9,6 +9,8 @@ import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/checkin/presentation/screens/checkin_form_screen.dart';
 import '../features/checkin/presentation/screens/checkin_history_screen.dart';
+import '../features/clients/presentation/screens/client_home_screen.dart';
+import '../features/clients/presentation/screens/client_list_screen.dart';
 import '../features/exercise/presentation/screens/exercise_detail_screen.dart';
 import '../features/exercise/presentation/screens/exercise_form_screen.dart';
 import '../features/exercise/presentation/screens/exercise_library_screen.dart';
@@ -103,7 +105,7 @@ GoRouter router(RouterRef ref) {
       // Client routes
       GoRoute(
         path: AppRoutes.clientHome,
-        builder: (context, state) => const _PlaceholderScreen(title: 'Client Home'),
+        builder: (context, state) => const ClientHomeScreen(),
         routes: [
           GoRoute(
             path: 'checkin',
@@ -114,9 +116,11 @@ GoRouter router(RouterRef ref) {
             builder: (context, state) => const CheckinHistoryScreen(),
           ),
           GoRoute(
-            path: 'plans',
-            builder: (context, state) =>
-                const _PlaceholderScreen(title: 'My Plans'),
+            path: 'plans/:planId',
+            builder: (context, state) {
+              final planId = state.pathParameters['planId']!;
+              return PlanDetailScreen(planId: planId);
+            },
           ),
         ],
       ),
@@ -128,8 +132,16 @@ GoRouter router(RouterRef ref) {
         routes: [
           GoRoute(
             path: 'clients',
-            builder: (context, state) =>
-                const _PlaceholderScreen(title: 'Client List'),
+            builder: (context, state) => const ClientListScreen(),
+            routes: [
+              GoRoute(
+                path: ':clientId',
+                builder: (context, state) {
+                  // TODO: Create ClientDetailScreen for trainer to view client
+                  return const _PlaceholderScreen(title: 'Client Details');
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'exercises',
