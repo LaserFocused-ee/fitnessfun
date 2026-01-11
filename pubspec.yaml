@@ -1,0 +1,70 @@
+name: fitness_fun
+description: "Fitness tracking app for trainers and clients"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend
+  supabase_flutter: ^2.8.0
+
+  # State Management (Riverpod 3 with code gen)
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  hooks_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Network (for external APIs if needed)
+  dio: ^5.8.0
+
+  # Functional Programming & Error Handling
+  fpdart: ^1.1.0
+
+  # Forms & Validation
+  reactive_forms: ^17.0.1
+
+  # Model Annotations (for code gen)
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Video Player
+  video_player: ^2.9.5
+  chewie: ^1.10.0
+
+  # UI Utilities
+  flutter_hooks: ^0.20.5
+  gap: ^3.0.1
+  cupertino_icons: ^1.0.8
+
+  # Environment
+  flutter_dotenv: ^5.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Testing
+  mocktail: ^1.0.4
+
+  # Code Generation (run with: dart run build_runner build)
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.3
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+  go_router_builder: ^2.8.1
+
+  # Linting
+  very_good_analysis: ^7.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
