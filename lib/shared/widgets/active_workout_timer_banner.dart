@@ -116,8 +116,8 @@ class ActiveWorkoutTimerBanner extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        // Always show workout elapsed time, color and state indicate rest
-                        elapsed.toWorkoutDisplay(),
+                        // Show rest state label + workout elapsed time
+                        '${_getRestLabel(restTimer.state)}${elapsed.toWorkoutDisplay()}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: textColor,
                           fontWeight: FontWeight.bold,
@@ -185,6 +185,18 @@ class ActiveWorkoutTimerBanner extends ConsumerWidget {
     }
   }
 
+  String _getRestLabel(GlobalRestState state) {
+    switch (state) {
+      case GlobalRestState.working:
+        return '';
+      case GlobalRestState.resting:
+        return 'REST ';
+      case GlobalRestState.ready:
+        return 'READY ';
+      case GlobalRestState.go:
+        return 'GO! ';
+    }
+  }
 }
 
 /// A pulsing dot to indicate active workout
