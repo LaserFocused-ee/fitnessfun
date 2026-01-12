@@ -17,14 +17,21 @@ fi
 # Add Flutter to PATH
 export PATH="$HOME/flutter/bin:$PATH"
 
-# Ensure we're on latest stable
-flutter channel stable
-flutter upgrade --force
+# Disable analytics and configure for web-only
+flutter config --no-analytics
+flutter config --enable-web
+flutter config --no-enable-android
+flutter config --no-enable-ios
+flutter config --no-enable-linux-desktop
+flutter config --no-enable-macos-desktop
+flutter config --no-enable-windows-desktop
+
+# Only download web artifacts (skip Android, iOS, etc.)
+flutter precache --web
 
 # Verify Flutter installation
 echo "Flutter version:"
 flutter --version
-flutter doctor -v
 
 # --- Create .env file from environment variables ---
 echo "Creating .env file from environment variables..."
