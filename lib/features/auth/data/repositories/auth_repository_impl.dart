@@ -36,6 +36,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final response = await _auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: 'https://fitness-fun.onrender.com/',
         data: {
           'full_name': fullName,
           'role': role.name,
@@ -152,7 +153,10 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<Either<Failure, Unit>> resetPassword(String email) async {
     try {
-      await _auth.resetPasswordForEmail(email);
+      await _auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'https://fitness-fun.onrender.com/',
+      );
       return right(unit);
     } on AuthException catch (e) {
       return left(Failure.auth(message: e.message, code: e.code));
