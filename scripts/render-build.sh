@@ -64,7 +64,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 # --- Build Flutter Web ---
 echo "Building Flutter web app..."
-flutter build web --release --web-renderer html
+flutter build web --release
 
 echo "=== Build Complete ==="
 echo "Output directory: build/web"
