@@ -6,22 +6,23 @@ set -e  # Exit on error
 
 echo "=== FitnessFun Render Build ==="
 
-# --- Configuration ---
-FLUTTER_VERSION="${FLUTTER_VERSION:-3.38.1}"
-FLUTTER_CHANNEL="stable"
+# --- Install Flutter from stable channel ---
+echo "Installing Flutter stable..."
 
-# --- Install Flutter ---
-echo "Installing Flutter ${FLUTTER_VERSION}..."
-
-# Clone Flutter if not present
+# Clone Flutter stable channel if not present
 if [ ! -d "$HOME/flutter" ]; then
-  git clone https://github.com/flutter/flutter.git -b ${FLUTTER_VERSION} --depth 1 "$HOME/flutter"
+  git clone https://github.com/flutter/flutter.git -b stable --depth 1 "$HOME/flutter"
 fi
 
 # Add Flutter to PATH
 export PATH="$HOME/flutter/bin:$PATH"
 
+# Ensure we're on latest stable
+flutter channel stable
+flutter upgrade --force
+
 # Verify Flutter installation
+echo "Flutter version:"
 flutter --version
 flutter doctor -v
 
