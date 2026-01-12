@@ -51,14 +51,6 @@ class ClientHomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Active workout banner
-            if (activeWorkout != null)
-              _ActiveWorkoutBanner(
-                workout: activeWorkout,
-                onContinue: () => context.push(
-                    '/client/plans/${activeWorkout.planId}/workout?sessionId=${activeWorkout.id}'),
-              ),
-
             // Pending invitations
             invitationsAsync.when(
               data: (invitations) {
@@ -317,12 +309,22 @@ class ClientHomeScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
-                                        child: FilledButton.icon(
-                                          onPressed: () => context.push(
-                                              '/client/plans/${plan.planId}/workout?clientPlanId=${plan.id}'),
-                                          icon: const Icon(Icons.play_arrow,
-                                              size: 18),
-                                          label: const Text('Start'),
+                                        child: Builder(
+                                          builder: (context) {
+                                            final isActivePlan = activeWorkout?.planId == plan.planId;
+                                            return FilledButton.icon(
+                                              onPressed: () => context.push(
+                                                isActivePlan
+                                                  ? '/client/plans/${plan.planId}/workout?sessionId=${activeWorkout!.id}'
+                                                  : '/client/plans/${plan.planId}/workout?clientPlanId=${plan.id}',
+                                              ),
+                                              icon: Icon(
+                                                isActivePlan ? Icons.play_arrow : Icons.play_arrow,
+                                                size: 18,
+                                              ),
+                                              label: Text(isActivePlan ? 'Continue' : 'Start'),
+                                            );
+                                          },
                                         ),
                                       ),
                                     ],
@@ -567,117 +569,3 @@ class _InvitationCard extends StatelessWidget {
   }
 }
 
-class _ActiveWorkoutBanner extends StatelessWidget {
-  const _ActiveWorkoutBanner({
-    required this.workout,
-    required this.onContinue,
-  });
-
-  final WorkoutSession workout;
-  final VoidCallback onContinue;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final elapsed = workout.startedAt != null
-        ? DateTime.now().difference(workout.startedAt!)
-        : Duration.zero;
-
-    final completedCount = workout.exerciseLogs.where((l) => l.completed).length;
-    final totalCount = workout.exerciseLogs.length;
-
-    return Card(
-      color: colorScheme.primaryContainer,
-      margin: const EdgeInsets.only(bottom: 24),
-      child: InkWell(
-        onTap: onContinue,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.fitness_center,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Workout in Progress',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _formatDuration(elapsed),
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                workout.planName ?? 'Workout',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$completedCount of $totalCount exercises completed',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onContinue,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Continue Workout'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colorScheme.onPrimaryContainer,
-                    foregroundColor: colorScheme.primaryContainer,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatDuration(Duration d) {
-    final hours = d.inHours;
-    final minutes = d.inMinutes.remainder(60);
-    final seconds = d.inSeconds.remainder(60);
-
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-}

@@ -84,7 +84,7 @@ class SupabaseClientRepository implements ClientRepository {
         final updateResponse = await _client
             .from('trainer_clients')
             .update({'status': 'pending'})
-            .eq('id', existingResponse['id'])
+            .eq('id', existingResponse['id'] as String)
             .select('*, profiles!trainer_clients_client_id_fkey(full_name, email)')
             .single();
 

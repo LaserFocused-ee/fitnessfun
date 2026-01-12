@@ -541,7 +541,7 @@ class _SessionDetailSheet extends StatelessWidget {
     }
 
     if (log.actualWeight != null) {
-      parts.add(log.actualWeight);
+      parts.add(log.actualWeight.toString());
     }
 
     if (parts.isEmpty) return null;

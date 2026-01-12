@@ -11,7 +11,7 @@ class WorkoutSession with _$WorkoutSession {
     required String clientId,
     required String planId,
     String? clientPlanId,
-    String? planName, // Denormalized for display
+    String? planName,
     DateTime? startedAt,
     DateTime? completedAt,
     String? notes,
@@ -44,15 +44,13 @@ class ExerciseLog with _$ExerciseLog {
     required String id,
     required String sessionId,
     required String planExerciseId,
-    String? exerciseName, // Denormalized for display
-    // Target values from plan (for reference)
+    String? exerciseName,
     int? targetSets,
     String? targetReps,
     String? targetTempo,
     String? targetRest,
-    // Actual logged values
     @Default(false) bool completed,
-    @Default([]) List<SetLog> setData, // Per-set logging
+    @Default([]) List<SetLog> setData,
     String? notes,
     DateTime? createdAt,
   }) = _ExerciseLog;

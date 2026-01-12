@@ -359,7 +359,8 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     String? clientPlanId,
   }) async {
     try {
-      final now = DateTime.now().toIso8601String();
+      // Always use UTC to ensure consistent timezone handling
+      final now = DateTime.now().toUtc().toIso8601String();
 
       final response = await _client
           .from('workout_sessions')
@@ -381,10 +382,17 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
-      final session = WorkoutSession.fromJson(_snakeToCamel({
+      final sessionJson = _snakeToCamel({
         ...response,
         'plan_name': planName,
-      }..remove('workout_plans')));
+      }..remove('workout_plans'));
+
+      // Ensure startedAt is set (workaround for any parsing issues)
+      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+        startedAt: sessionJson['startedAt'] != null
+            ? DateTime.tryParse(sessionJson['startedAt'].toString())
+            : DateTime.now().toUtc(),
+      );
 
       // Create empty exercise logs for each plan exercise
       final exerciseLogs = <ExerciseLog>[];
@@ -487,10 +495,20 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         }..remove('plan_exercises')));
       }).toList();
 
-      return right(WorkoutSession.fromJson(_snakeToCamel({
+      final sessionJson = _snakeToCamel({
         ...response,
         'plan_name': planName,
-      }..remove('workout_plans'))).copyWith(exerciseLogs: logs));
+      }..remove('workout_plans'));
+
+      // Ensure startedAt is set (workaround for any parsing issues)
+      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+        exerciseLogs: logs,
+        startedAt: sessionJson['startedAt'] != null
+            ? DateTime.tryParse(sessionJson['startedAt'].toString())
+            : null,
+      );
+
+      return right(session);
     } catch (e) {
       return left(ServerFailure(message: 'Failed to load session: $e'));
     }

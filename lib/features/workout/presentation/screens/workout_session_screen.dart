@@ -12,9 +12,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../shared/services/video_cache_service.dart';
 import '../../domain/entities/workout_session.dart';
 import '../providers/workout_provider.dart';
-
-/// Rest timer states
-enum RestState { working, resting, ready, go }
+import '../providers/workout_timer_provider.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   const WorkoutSessionScreen({
@@ -34,14 +32,6 @@ class WorkoutSessionScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
-  Timer? _timer;
-  Duration _elapsed = Duration.zero;
-
-  // Rest timer state
-  RestState _restState = RestState.working;
-  Duration _restElapsed = Duration.zero;
-  int _restMinSeconds = 0;
-  int _restMaxSeconds = 0;
 
   @override
   void initState() {
@@ -62,53 +52,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             clientPlanId: widget.clientPlanId,
           );
     }
-
-    final session = ref.read(activeWorkoutNotifierProvider).valueOrNull;
-    if (session != null) {
-      _startTimer();
-    }
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _elapsed += const Duration(seconds: 1);
-
-          // Update rest timer if resting
-          if (_restState != RestState.working) {
-            _restElapsed += const Duration(seconds: 1);
-            _updateRestState();
-          }
-        });
-      }
-    });
-  }
-
-  void _updateRestState() {
-    final restSeconds = _restElapsed.inSeconds;
-
-    if (restSeconds >= _restMaxSeconds) {
-      _restState = RestState.go;
-    } else if (restSeconds >= _restMinSeconds) {
-      _restState = RestState.ready;
-    } else {
-      _restState = RestState.resting;
-    }
   }
 
   void _startRest(String? restString) {
     // Parse rest string like "90" or "90-120"
     final parsed = _parseRestRange(restString);
-    _restMinSeconds = parsed.$1;
-    _restMaxSeconds = parsed.$2;
-    _restElapsed = Duration.zero;
-    _restState = RestState.resting;
+    ref.read(globalRestTimerProvider.notifier).startRest(parsed.$1, parsed.$2);
   }
 
   void _stopRest() {
-    _restState = RestState.working;
-    _restElapsed = Duration.zero;
+    ref.read(globalRestTimerProvider.notifier).stopRest();
   }
 
   (int, int) _parseRestRange(String? restString) {
@@ -128,60 +81,27 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
+  void _showWorkoutCompleteDialog() {
+    _stopRest(); // Stop any active rest timer
 
-  String _formatDuration(Duration d) {
-    final hours = d.inHours;
-    final minutes = d.inMinutes.remainder(60);
-    final seconds = d.inSeconds.remainder(60);
-
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  Color _getTimerColor(ColorScheme colorScheme) {
-    switch (_restState) {
-      case RestState.working:
-        return colorScheme.primary; // Green-ish (primary)
-      case RestState.resting:
-        return Colors.orange;
-      case RestState.ready:
-        return Colors.blue;
-      case RestState.go:
-        return Colors.green;
-    }
-  }
-
-  Color _getTimerBackgroundColor(ColorScheme colorScheme) {
-    switch (_restState) {
-      case RestState.working:
-        return colorScheme.primaryContainer;
-      case RestState.resting:
-        return Colors.orange.shade100;
-      case RestState.ready:
-        return Colors.blue.shade100;
-      case RestState.go:
-        return Colors.green.shade100;
-    }
-  }
-
-  String _getTimerLabel() {
-    switch (_restState) {
-      case RestState.working:
-        return '';
-      case RestState.resting:
-        return 'REST ';
-      case RestState.ready:
-        return 'READY ';
-      case RestState.go:
-        return 'GO! ';
-    }
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.celebration, size: 48, color: Colors.green),
+        title: const Text('Workout Complete!'),
+        content: const Text('Great job! You finished all exercises.'),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _finishWorkout();
+            },
+            child: const Text('Finish & Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _finishWorkout() async {
@@ -245,38 +165,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     }
   }
 
-  Future<void> _cancelWorkout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Workout'),
-        content: const Text(
-          'Are you sure you want to cancel this workout? All logged exercises will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep Going'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Cancel Workout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await ref.read(activeWorkoutNotifierProvider.notifier).cancelSession();
-      if (mounted) {
-        context.pop();
-      }
-    }
-  }
-
   void _showVideoModal(BuildContext context, String title, String videoUrl) {
     showDialog(
       context: context,
@@ -291,16 +179,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   Widget build(BuildContext context) {
     final sessionAsync = ref.watch(activeWorkoutNotifierProvider);
     final planAsync = ref.watch(planByIdProvider(widget.planId));
+    final restTimer = ref.watch(globalRestTimerProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        _cancelWorkout();
-      },
-      child: sessionAsync.when(
+    return sessionAsync.when(
         data: (session) {
           if (session == null) {
             return Scaffold(
@@ -325,48 +208,13 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             }
           }
 
-          final timerColor = _getTimerColor(colorScheme);
-          final timerBgColor = _getTimerBackgroundColor(colorScheme);
-          final timerLabel = _getTimerLabel();
-
           return Scaffold(
             appBar: AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.close),
-                onPressed: _cancelWorkout,
+                onPressed: () => context.pop(),
               ),
               title: Text(session.planName ?? 'Workout'),
-              actions: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: timerBgColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.timer,
-                        size: 18,
-                        color: timerColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$timerLabel${_formatDuration(_elapsed)}',
-                        style: TextStyle(
-                          color: timerColor,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
             body: Column(
               children: [
@@ -422,22 +270,32 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                         log: log,
                         index: index,
                         videoUrl: videoUrl,
-                        isResting: _restState != RestState.working,
+                        isResting: restTimer.state != GlobalRestState.working,
                         onVideoTap: videoUrl != null
                             ? () => _showVideoModal(
                                 context, log.exerciseName ?? 'Exercise', videoUrl)
                             : null,
-                        onSetComplete: (updatedLog, isLastSet) {
-                          ref
+                        onSetComplete: (updatedLog, isLastSet) async {
+                          await ref
                               .read(activeWorkoutNotifierProvider.notifier)
                               .updateExerciseLog(updatedLog);
 
-                          // Start rest timer after completing a set (unless it's the last set of the exercise)
+                          // Start rest timer after completing a set
                           if (!isLastSet) {
                             _startRest(log.targetRest);
                           } else {
-                            // Exercise complete - start rest for next exercise
-                            _startRest(log.targetRest);
+                            // Exercise complete - check if all exercises are now done
+                            final currentSession = ref.read(activeWorkoutNotifierProvider).valueOrNull;
+                            if (currentSession != null) {
+                              final allComplete = currentSession.exerciseLogs.every((l) => l.completed);
+                              if (allComplete) {
+                                // All exercises complete - show completion dialog
+                                _showWorkoutCompleteDialog();
+                              } else {
+                                // Start rest for next exercise
+                                _startRest(log.targetRest);
+                              }
+                            }
                           }
                         },
                         onStartSet: () {
@@ -507,7 +365,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 }
