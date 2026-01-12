@@ -43,7 +43,7 @@ abstract final class AppTheme {
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       );
 
-  static CardTheme get _cardTheme => CardTheme(
+  static CardThemeData get _cardTheme => CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
