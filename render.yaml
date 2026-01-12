@@ -13,7 +13,7 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: FLUTTER_VERSION
-        value: "3.27.1"
+        value: "3.38.1"
     headers:
       # Security headers
       - path: /*

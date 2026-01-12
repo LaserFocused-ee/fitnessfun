@@ -7,7 +7,7 @@ set -e  # Exit on error
 echo "=== FitnessFun Render Build ==="
 
 # --- Configuration ---
-FLUTTER_VERSION="${FLUTTER_VERSION:-3.27.1}"
+FLUTTER_VERSION="${FLUTTER_VERSION:-3.38.1}"
 FLUTTER_CHANNEL="stable"
 
 # --- Install Flutter ---
