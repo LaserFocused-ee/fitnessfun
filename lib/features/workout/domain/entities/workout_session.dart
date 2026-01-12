@@ -49,6 +49,7 @@ class ExerciseLog with _$ExerciseLog {
     String? targetReps,
     String? targetTempo,
     String? targetRest,
+    String? trainerNotes, // Notes from the trainer for this exercise
     @Default(false) bool completed,
     @Default([]) List<SetLog> setData,
     String? notes,
@@ -66,6 +67,7 @@ class ExerciseLog with _$ExerciseLog {
     String? targetReps,
     String? targetTempo,
     String? targetRest,
+    String? trainerNotes,
   }) {
     // Initialize empty set logs based on target sets
     final numSets = targetSets ?? 3;
@@ -83,6 +85,7 @@ class ExerciseLog with _$ExerciseLog {
       targetReps: targetReps,
       targetTempo: targetTempo,
       targetRest: targetRest,
+      trainerNotes: trainerNotes,
       setData: setData,
     );
   }

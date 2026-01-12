@@ -375,7 +375,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get the plan exercises to create initial logs
+      // Get the plan exercises to create initial logs (including trainer notes)
       final planExercises = await _client
           .from('plan_exercises')
           .select('*, exercises(name)')
@@ -425,6 +425,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           'target_reps': exerciseData['reps'],
           'target_tempo': exerciseData['tempo'],
           'target_rest': exerciseData['rest_seconds'],
+          'trainer_notes': exerciseData['notes'],
         })));
       }
 
@@ -473,10 +474,10 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get exercise logs with plan exercise details
+      // Get exercise logs with plan exercise details (including trainer notes)
       final logsResponse = await _client
           .from('exercise_logs')
-          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, notes, exercises(name))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
@@ -492,6 +493,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           'target_reps': planExercise?['reps'],
           'target_tempo': planExercise?['tempo'],
           'target_rest': planExercise?['rest_seconds'],
+          'trainer_notes': planExercise?['notes'],
         }..remove('plan_exercises')));
       }).toList();
 
@@ -614,7 +616,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     try {
       final response = await _client
           .from('exercise_logs')
-          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, notes, exercises(name))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
@@ -630,6 +632,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           'target_reps': planExercise?['reps'],
           'target_tempo': planExercise?['tempo'],
           'target_rest': planExercise?['rest_seconds'],
+          'trainer_notes': planExercise?['notes'],
         }..remove('plan_exercises')));
       }).toList();
 
