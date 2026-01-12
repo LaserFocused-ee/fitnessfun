@@ -1,8 +1,7 @@
 -- Initial Schema for Fitness Tracking App
 -- This migration creates all core tables for the application
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Use gen_random_uuid() which is available by default in Supabase
 
 -- ============================================
 -- PROFILES (extends auth.users)
@@ -36,7 +35,7 @@ USING (auth.uid() = id);
 -- TRAINER-CLIENT RELATIONSHIPS
 -- ============================================
 CREATE TABLE public.trainer_clients (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trainer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'inactive')),
@@ -80,7 +79,7 @@ USING (
 -- EXERCISES (template library)
 -- ============================================
 CREATE TABLE public.exercises (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   instructions TEXT,
   video_path TEXT,  -- Path in Supabase Storage
@@ -133,7 +132,7 @@ USING (created_by = auth.uid() AND is_global = false);
 -- WORKOUT PLANS
 -- ============================================
 CREATE TABLE public.workout_plans (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
   trainer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -156,7 +155,7 @@ USING (trainer_id = auth.uid());
 -- PLAN EXERCISES (exercises in a plan with custom params)
 -- ============================================
 CREATE TABLE public.plan_exercises (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plan_id UUID NOT NULL REFERENCES public.workout_plans(id) ON DELETE CASCADE,
   exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE CASCADE,
   sets INTEGER,
@@ -188,7 +187,7 @@ USING (
 -- CLIENT PLANS (assigned plans to clients)
 -- ============================================
 CREATE TABLE public.client_plans (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES public.workout_plans(id) ON DELETE CASCADE,
   start_date DATE,
@@ -245,7 +244,7 @@ USING (
 -- WORKOUT SESSIONS (when client completes a workout)
 -- ============================================
 CREATE TABLE public.workout_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   client_plan_id UUID NOT NULL REFERENCES public.client_plans(id) ON DELETE CASCADE,
   completed_at TIMESTAMPTZ DEFAULT NOW(),
@@ -278,7 +277,7 @@ USING (
 -- EXERCISE LOGS (individual exercise logs within a session)
 -- ============================================
 CREATE TABLE public.exercise_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
   plan_exercise_id UUID NOT NULL REFERENCES public.plan_exercises(id) ON DELETE CASCADE,
   completed BOOLEAN DEFAULT true,
@@ -321,7 +320,7 @@ USING (
 -- DAILY CHECK-INS
 -- ============================================
 CREATE TABLE public.daily_checkins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date DATE NOT NULL,
 
