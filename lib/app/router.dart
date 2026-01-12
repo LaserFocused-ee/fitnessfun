@@ -18,6 +18,8 @@ import '../features/trainer/presentation/screens/trainer_home_screen.dart';
 import '../features/workout/presentation/screens/plan_builder_screen.dart';
 import '../features/workout/presentation/screens/plan_detail_screen.dart';
 import '../features/workout/presentation/screens/plan_list_screen.dart';
+import '../features/workout/presentation/screens/workout_history_screen.dart';
+import '../features/workout/presentation/screens/workout_session_screen.dart';
 import 'routes.dart';
 
 part 'router.g.dart';
@@ -116,11 +118,30 @@ GoRouter router(RouterRef ref) {
             builder: (context, state) => const CheckinHistoryScreen(),
           ),
           GoRoute(
+            path: 'workout-history',
+            builder: (context, state) => const WorkoutHistoryScreen(),
+          ),
+          GoRoute(
             path: 'plans/:planId',
             builder: (context, state) {
               final planId = state.pathParameters['planId']!;
-              return PlanDetailScreen(planId: planId);
+              return PlanDetailScreen(planId: planId, isClientView: true);
             },
+            routes: [
+              GoRoute(
+                path: 'workout',
+                builder: (context, state) {
+                  final planId = state.pathParameters['planId']!;
+                  final clientPlanId = state.uri.queryParameters['clientPlanId'];
+                  final sessionId = state.uri.queryParameters['sessionId'];
+                  return WorkoutSessionScreen(
+                    planId: planId,
+                    clientPlanId: clientPlanId,
+                    sessionId: sessionId,
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/workout_plan.dart';
+import '../entities/workout_session.dart';
 
 /// Repository interface for workout plan operations
 abstract class WorkoutRepository {
@@ -59,4 +60,48 @@ abstract class WorkoutRepository {
 
   /// Get active plan for a client (if any)
   Future<Either<Failure, ClientPlan?>> getActiveClientPlan(String clientId);
+
+  // ===== Workout Sessions =====
+
+  /// Start a new workout session
+  Future<Either<Failure, WorkoutSession>> startWorkoutSession({
+    required String clientId,
+    required String planId,
+    String? clientPlanId,
+  });
+
+  /// Complete a workout session
+  Future<Either<Failure, WorkoutSession>> completeWorkoutSession({
+    required String sessionId,
+    String? notes,
+  });
+
+  /// Get a workout session by ID with exercise logs
+  Future<Either<Failure, WorkoutSession>> getWorkoutSession(String sessionId);
+
+  /// Get all workout sessions for a client
+  Future<Either<Failure, List<WorkoutSession>>> getClientWorkoutSessions(
+    String clientId, {
+    int limit = 50,
+  });
+
+  /// Get workout sessions for a specific plan by client
+  Future<Either<Failure, List<WorkoutSession>>> getSessionsByPlan(
+    String clientId,
+    String planId,
+  );
+
+  /// Delete a workout session
+  Future<Either<Failure, Unit>> deleteWorkoutSession(String sessionId);
+
+  // ===== Exercise Logs =====
+
+  /// Save/update an exercise log within a session
+  Future<Either<Failure, ExerciseLog>> saveExerciseLog(ExerciseLog log);
+
+  /// Get all exercise logs for a session
+  Future<Either<Failure, List<ExerciseLog>>> getExerciseLogs(String sessionId);
+
+  /// Update exercise log (mark complete, add notes, etc.)
+  Future<Either<Failure, ExerciseLog>> updateExerciseLog(ExerciseLog log);
 }

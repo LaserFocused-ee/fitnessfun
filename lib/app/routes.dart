@@ -13,7 +13,8 @@ abstract final class AppRoutes {
   static const String checkin = '/client/checkin';
   static const String checkinHistory = '/client/checkin/history';
   static const String myPlans = '/client/plans';
-  static const String workoutLog = '/client/workout/:planId';
+  static const String workoutSession = '/client/plans/:planId/workout';
+  static const String workoutHistory = '/client/workout-history';
 
   // Trainer routes
   static const String trainerHome = '/trainer';

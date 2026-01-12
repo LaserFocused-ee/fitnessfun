@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../workout/domain/entities/workout_session.dart';
 import '../../../workout/presentation/providers/workout_provider.dart';
 import '../providers/client_provider.dart';
 
@@ -16,6 +17,7 @@ class ClientHomeScreen extends ConsumerWidget {
     final trainerAsync = ref.watch(clientTrainerProvider);
     final invitationsAsync = ref.watch(pendingInvitationsProvider);
     final plansAsync = ref.watch(clientPlansProvider);
+    final activeWorkout = ref.watch(activeWorkoutNotifierProvider).valueOrNull;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -48,6 +50,14 @@ class ClientHomeScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Active workout banner
+            if (activeWorkout != null)
+              _ActiveWorkoutBanner(
+                workout: activeWorkout,
+                onContinue: () => context.push(
+                    '/client/plans/${activeWorkout.planId}/workout?sessionId=${activeWorkout.id}'),
+              ),
 
             // Pending invitations
             invitationsAsync.when(
@@ -183,6 +193,20 @@ class ClientHomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.fitness_center,
+                    title: 'Workout History',
+                    color: colorScheme.tertiaryContainer,
+                    onTap: () => context.push('/client/workout-history'),
+                  ),
+                ),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
 
             const SizedBox(height: 24),
 
@@ -236,23 +260,75 @@ class ClientHomeScreen extends ConsumerWidget {
                 return Column(
                   children: activePlans
                       .map((plan) => Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: colorScheme.tertiaryContainer,
-                                child: Icon(
-                                  Icons.assignment,
-                                  color: colorScheme.onTertiaryContainer,
-                                ),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor:
+                                            colorScheme.tertiaryContainer,
+                                        child: Icon(
+                                          Icons.assignment,
+                                          color: colorScheme.onTertiaryContainer,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              plan.planName ?? 'Workout Plan',
+                                              style: theme.textTheme.titleMedium
+                                                  ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            if (plan.startDate != null)
+                                              Text(
+                                                'Started ${_formatDate(plan.startDate!)}',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: colorScheme.onSurface
+                                                      .withValues(alpha: 0.6),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => context.push(
+                                              '/client/plans/${plan.planId}'),
+                                          icon: const Icon(Icons.visibility,
+                                              size: 18),
+                                          label: const Text('View'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: FilledButton.icon(
+                                          onPressed: () => context.push(
+                                              '/client/plans/${plan.planId}/workout?clientPlanId=${plan.id}'),
+                                          icon: const Icon(Icons.play_arrow,
+                                              size: 18),
+                                          label: const Text('Start'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              title: Text(plan.planName ?? 'Workout Plan'),
-                              subtitle: plan.startDate != null
-                                  ? Text(
-                                      'Started ${_formatDate(plan.startDate!)}')
-                                  : null,
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () =>
-                                  context.push('/client/plans/${plan.planId}'),
                             ),
                           ))
                       .toList(),
@@ -488,5 +564,120 @@ class _InvitationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ActiveWorkoutBanner extends StatelessWidget {
+  const _ActiveWorkoutBanner({
+    required this.workout,
+    required this.onContinue,
+  });
+
+  final WorkoutSession workout;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final elapsed = workout.startedAt != null
+        ? DateTime.now().difference(workout.startedAt!)
+        : Duration.zero;
+
+    final completedCount = workout.exerciseLogs.where((l) => l.completed).length;
+    final totalCount = workout.exerciseLogs.length;
+
+    return Card(
+      color: colorScheme.primaryContainer,
+      margin: const EdgeInsets.only(bottom: 24),
+      child: InkWell(
+        onTap: onContinue,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.fitness_center,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Workout in Progress',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _formatDuration(elapsed),
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                workout.planName ?? 'Workout',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$completedCount of $totalCount exercises completed',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onContinue,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Continue Workout'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colorScheme.onPrimaryContainer,
+                    foregroundColor: colorScheme.primaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60);
+    final seconds = d.inSeconds.remainder(60);
+
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

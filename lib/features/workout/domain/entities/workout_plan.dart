@@ -33,6 +33,7 @@ class PlanExercise with _$PlanExercise {
     required String planId,
     required String exerciseId,
     String? exerciseName, // Denormalized for display
+    String? exerciseVideoUrl, // Denormalized for video playback
     int? sets,
     String? reps, // "8-10" format for ranges
     String? tempo, // "3111" notation

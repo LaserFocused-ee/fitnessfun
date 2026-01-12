@@ -1,16 +1,24 @@
+import 'dart:io';
+
+import 'package:chewie/chewie.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/services/video_cache_service.dart';
 import '../providers/workout_provider.dart';
 
 class PlanDetailScreen extends ConsumerWidget {
   const PlanDetailScreen({
     super.key,
     required this.planId,
+    this.isClientView = false,
   });
 
   final String planId;
+  final bool isClientView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,40 +32,51 @@ class PlanDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: Text(plan.name),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => context.push('/trainer/plans/$planId/edit'),
-                tooltip: 'Edit Plan',
-              ),
-              PopupMenuButton(
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'assign',
-                    child: ListTile(
-                      leading: Icon(Icons.person_add),
-                      title: Text('Assign to Client'),
-                      contentPadding: EdgeInsets.zero,
+              // Trainer-only actions
+              if (!isClientView) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => context.push('/trainer/plans/$planId/edit'),
+                  tooltip: 'Edit Plan',
+                ),
+                PopupMenuButton(
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'assign',
+                      child: ListTile(
+                        leading: Icon(Icons.person_add),
+                        title: Text('Assign to Client'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(Icons.delete, color: Colors.red),
-                      title: Text('Delete Plan'),
-                      contentPadding: EdgeInsets.zero,
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(Icons.delete, color: Colors.red),
+                        title: Text('Delete Plan'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                ],
-                onSelected: (value) async {
-                  if (value == 'delete') {
-                    await _deletePlan(context, ref);
-                  } else if (value == 'assign') {
-                    _showAssignDialog(context, ref);
-                  }
-                },
-              ),
+                  ],
+                  onSelected: (value) async {
+                    if (value == 'delete') {
+                      await _deletePlan(context, ref);
+                    } else if (value == 'assign') {
+                      _showAssignDialog(context, ref);
+                    }
+                  },
+                ),
+              ],
             ],
           ),
+          // Client: Start Workout FAB
+          floatingActionButton: isClientView
+              ? FloatingActionButton.extended(
+                  onPressed: () => context.push('/client/plans/$planId/workout'),
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Workout'),
+                )
+              : null,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -153,6 +172,21 @@ class PlanDetailScreen extends ConsumerWidget {
                                           ),
                                         ),
                                       ),
+                                      // Video button
+                                      if (exercise.exerciseVideoUrl != null)
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.play_circle_filled,
+                                            color: colorScheme.primary,
+                                            size: 32,
+                                          ),
+                                          tooltip: 'Watch Demo',
+                                          onPressed: () => _showVideoModal(
+                                            context,
+                                            exercise.exerciseName ?? 'Exercise',
+                                            exercise.exerciseVideoUrl!,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -306,6 +340,307 @@ class PlanDetailScreen extends ConsumerWidget {
       const SnackBar(
         content: Text('Client assignment coming soon - need trainer-client linking first'),
       ),
+    );
+  }
+
+  void _showVideoModal(BuildContext context, String title, String videoUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => _VideoPlayerDialog(
+        title: title,
+        videoUrl: videoUrl,
+      ),
+    );
+  }
+}
+
+class _VideoPlayerDialog extends StatefulWidget {
+  const _VideoPlayerDialog({
+    required this.title,
+    required this.videoUrl,
+  });
+
+  final String title;
+  final String videoUrl;
+
+  @override
+  State<_VideoPlayerDialog> createState() => _VideoPlayerDialogState();
+}
+
+class _VideoPlayerDialogState extends State<_VideoPlayerDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final screenSize = MediaQuery.of(context).size;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: screenSize.width * 0.9,
+          maxHeight: screenSize.height * 0.8,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            // Video player
+            Flexible(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  child: _VideoPlayer(videoUrl: widget.videoUrl),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Cross-platform video player with caching and download progress
+class _VideoPlayer extends StatefulWidget {
+  const _VideoPlayer({required this.videoUrl});
+
+  final String videoUrl;
+
+  @override
+  State<_VideoPlayer> createState() => _VideoPlayerState();
+}
+
+class _VideoPlayerState extends State<_VideoPlayer> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+
+  // Download state
+  bool _isDownloading = true;
+  double _downloadProgress = 0.0;
+  bool _isInitializing = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _downloadAndPlay();
+  }
+
+  Future<void> _downloadAndPlay() async {
+    final cacheService = VideoCacheService.instance;
+
+    await for (final state in cacheService.getVideo(widget.videoUrl)) {
+      if (!mounted) return;
+
+      switch (state) {
+        case VideoDownloading(progress: final progress):
+          setState(() {
+            _isDownloading = true;
+            _downloadProgress = progress;
+          });
+        case VideoCompleted(path: final path):
+          setState(() {
+            _isDownloading = false;
+            _isInitializing = true;
+          });
+          await _initializePlayer(path);
+        case VideoError(message: final message):
+          setState(() {
+            _isDownloading = false;
+            _error = message;
+          });
+      }
+    }
+  }
+
+  Future<void> _initializePlayer(String videoPath) async {
+    try {
+      // On mobile, use file path; on web, use URL
+      if (kIsWeb) {
+        _videoController = VideoPlayerController.networkUrl(Uri.parse(videoPath));
+      } else {
+        _videoController = VideoPlayerController.file(File(videoPath));
+      }
+
+      await _videoController!.initialize();
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: true,
+        looping: false,
+        showControls: true,
+        aspectRatio: _videoController!.value.aspectRatio,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Text(
+              'Error: $errorMessage',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    // Show download progress
+    if (_isDownloading) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 120,
+                height: 120,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: _downloadProgress > 0 ? _downloadProgress : null,
+                      color: colorScheme.primary,
+                      strokeWidth: 4,
+                    ),
+                    if (_downloadProgress > 0)
+                      Text(
+                        '${(_downloadProgress * 100).toInt()}%',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _downloadProgress > 0 ? 'Downloading...' : 'Loading...',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show initialization spinner
+    if (_isInitializing) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: colorScheme.primary),
+              const SizedBox(height: 16),
+              Text(
+                'Preparing video...',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show error
+    if (_error != null) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: colorScheme.error,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to load video',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show video player
+    return ColoredBox(
+      color: Colors.black,
+      child: _chewieController != null
+          ? Chewie(controller: _chewieController!)
+          : const SizedBox.shrink(),
     );
   }
 }

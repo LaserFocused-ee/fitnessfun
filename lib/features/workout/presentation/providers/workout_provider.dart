@@ -5,6 +5,7 @@ import '../../../../core/error/failures.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/workout_repository_impl.dart';
 import '../../domain/entities/workout_plan.dart';
+import '../../domain/entities/workout_session.dart';
 import '../../domain/repositories/workout_repository.dart';
 
 part 'workout_provider.g.dart';
@@ -235,5 +236,168 @@ class PlanAssignmentNotifier extends _$PlanAssignmentNotifier {
     );
 
     return result;
+  }
+}
+
+// ===== Workout Sessions =====
+
+/// Provides client's workout session history
+@riverpod
+Future<List<WorkoutSession>> clientWorkoutHistory(
+  ClientWorkoutHistoryRef ref, {
+  int limit = 50,
+}) async {
+  final repo = ref.watch(workoutRepositoryProvider);
+  final profile = ref.watch(currentProfileProvider).valueOrNull;
+
+  if (profile == null) {
+    return [];
+  }
+
+  final result = await repo.getClientWorkoutSessions(profile.id, limit: limit);
+
+  return result.fold(
+    (failure) => throw Exception(failure.displayMessage),
+    (sessions) => sessions,
+  );
+}
+
+/// Provides a single workout session by ID
+@riverpod
+Future<WorkoutSession> workoutSessionById(
+  WorkoutSessionByIdRef ref,
+  String sessionId,
+) async {
+  final repo = ref.watch(workoutRepositoryProvider);
+  final result = await repo.getWorkoutSession(sessionId);
+
+  return result.fold(
+    (failure) => throw Exception(failure.displayMessage),
+    (session) => session,
+  );
+}
+
+/// Notifier for managing an active workout session
+@riverpod
+class ActiveWorkoutNotifier extends _$ActiveWorkoutNotifier {
+  @override
+  AsyncValue<WorkoutSession?> build() => const AsyncData(null);
+
+  /// Start a new workout session from a plan
+  Future<Either<Failure, WorkoutSession>> startSession({
+    required String planId,
+    String? clientPlanId,
+  }) async {
+    state = const AsyncLoading();
+
+    final repo = ref.read(workoutRepositoryProvider);
+    final profile = ref.read(currentProfileProvider).valueOrNull;
+
+    if (profile == null) {
+      state = const AsyncData(null);
+      return left(const AuthFailure(message: 'Not authenticated'));
+    }
+
+    final result = await repo.startWorkoutSession(
+      clientId: profile.id,
+      planId: planId,
+      clientPlanId: clientPlanId,
+    );
+
+    state = result.fold(
+      (failure) => AsyncError(failure, StackTrace.current),
+      (session) => AsyncData(session),
+    );
+
+    return result;
+  }
+
+  /// Load an existing session (for resuming)
+  Future<void> loadSession(String sessionId) async {
+    state = const AsyncLoading();
+
+    final repo = ref.read(workoutRepositoryProvider);
+    final result = await repo.getWorkoutSession(sessionId);
+
+    state = result.fold(
+      (failure) => AsyncError(failure, StackTrace.current),
+      (session) => AsyncData(session),
+    );
+  }
+
+  /// Update an exercise log (mark complete, add notes, etc.)
+  Future<Either<Failure, ExerciseLog>> updateExerciseLog(
+    ExerciseLog log,
+  ) async {
+    final repo = ref.read(workoutRepositoryProvider);
+    final result = await repo.updateExerciseLog(log);
+
+    result.fold(
+      (failure) => null,
+      (updatedLog) {
+        // Update the session state with the new log
+        final currentSession = state.valueOrNull;
+        if (currentSession != null) {
+          final updatedLogs = currentSession.exerciseLogs.map((l) {
+            return l.id == updatedLog.id ? log : l;
+          }).toList();
+          state = AsyncData(currentSession.copyWith(exerciseLogs: updatedLogs));
+        }
+      },
+    );
+
+    return result;
+  }
+
+  /// Complete the workout session
+  Future<Either<Failure, WorkoutSession>> completeSession({
+    String? notes,
+  }) async {
+    final currentSession = state.valueOrNull;
+    if (currentSession == null) {
+      return left(const ValidationFailure(message: 'No active session'));
+    }
+
+    final repo = ref.read(workoutRepositoryProvider);
+    final result = await repo.completeWorkoutSession(
+      sessionId: currentSession.id,
+      notes: notes,
+    );
+
+    result.fold(
+      (failure) => null,
+      (completedSession) {
+        // Clear active session and refresh history
+        state = const AsyncData(null);
+        ref.invalidate(clientWorkoutHistoryProvider);
+      },
+    );
+
+    return result;
+  }
+
+  /// Cancel/abandon the workout session
+  Future<Either<Failure, Unit>> cancelSession() async {
+    final currentSession = state.valueOrNull;
+    if (currentSession == null) {
+      return right(unit);
+    }
+
+    final repo = ref.read(workoutRepositoryProvider);
+    final result = await repo.deleteWorkoutSession(currentSession.id);
+
+    result.fold(
+      (failure) => null,
+      (_) {
+        state = const AsyncData(null);
+      },
+    );
+
+    return result;
+  }
+
+  /// Clear the active session (without deleting)
+  void clearSession() {
+    state = const AsyncData(null);
   }
 }

@@ -2,6 +2,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/workout_plan.dart';
+import '../../domain/entities/workout_session.dart';
 import '../../domain/repositories/workout_repository.dart';
 
 class SupabaseWorkoutRepository implements WorkoutRepository {
@@ -42,20 +43,31 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           .eq('id', planId)
           .single();
 
-      // Get the exercises with their names
+      // Get the exercises with their names and video paths
       final exercisesResponse = await _client
           .from('plan_exercises')
-          .select('*, exercises(name)')
+          .select('*, exercises(name, video_path)')
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
       final exercises = (exercisesResponse as List).map((json) {
         final exerciseData = json as Map<String, dynamic>;
-        final exerciseName = exerciseData['exercises']?['name'] as String?;
+        final exerciseInfo = exerciseData['exercises'] as Map<String, dynamic>?;
+        final exerciseName = exerciseInfo?['name'] as String?;
+        final videoPath = exerciseInfo?['video_path'] as String?;
+
+        // Generate full video URL if path exists
+        String? videoUrl;
+        if (videoPath != null && videoPath.isNotEmpty) {
+          videoUrl = _client.storage
+              .from('exercise-videos')
+              .getPublicUrl(videoPath);
+        }
 
         return PlanExercise.fromJson(_snakeToCamel({
           ...exerciseData,
           'exercise_name': exerciseName,
+          'exercise_video_url': videoUrl,
         }..remove('exercises')));
       }).toList();
 
@@ -335,6 +347,302 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
       }..remove('workout_plans'))));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to load active plan: $e'));
+    }
+  }
+
+  // ===== Workout Sessions =====
+
+  @override
+  Future<Either<Failure, WorkoutSession>> startWorkoutSession({
+    required String clientId,
+    required String planId,
+    String? clientPlanId,
+  }) async {
+    try {
+      final now = DateTime.now().toIso8601String();
+
+      final response = await _client
+          .from('workout_sessions')
+          .insert({
+            'client_id': clientId,
+            'plan_id': planId,
+            'client_plan_id': clientPlanId,
+            'started_at': now,
+          })
+          .select('*, workout_plans(name)')
+          .single();
+
+      final planName = response['workout_plans']?['name'] as String?;
+
+      // Get the plan exercises to create initial logs
+      final planExercises = await _client
+          .from('plan_exercises')
+          .select('*, exercises(name)')
+          .eq('plan_id', planId)
+          .order('order_index', ascending: true);
+
+      final session = WorkoutSession.fromJson(_snakeToCamel({
+        ...response,
+        'plan_name': planName,
+      }..remove('workout_plans')));
+
+      // Create empty exercise logs for each plan exercise
+      final exerciseLogs = <ExerciseLog>[];
+      for (final pe in planExercises as List) {
+        final exerciseData = pe as Map<String, dynamic>;
+        final exerciseName = exerciseData['exercises']?['name'] as String?;
+        final targetSets = exerciseData['sets'] as int? ?? 3;
+
+        // Initialize empty set data based on target sets
+        final setData = List.generate(
+          targetSets,
+          (i) => {'setNumber': i + 1, 'reps': null, 'weight': null, 'completed': false},
+        );
+
+        final logResponse = await _client
+            .from('exercise_logs')
+            .insert({
+              'session_id': session.id,
+              'plan_exercise_id': exerciseData['id'],
+              'completed': false,
+              'set_data': setData,
+            })
+            .select()
+            .single();
+
+        exerciseLogs.add(ExerciseLog.fromJson(_snakeToCamel({
+          ...logResponse,
+          'exercise_name': exerciseName,
+          'target_sets': exerciseData['sets'],
+          'target_reps': exerciseData['reps'],
+          'target_tempo': exerciseData['tempo'],
+          'target_rest': exerciseData['rest_seconds'],
+        })));
+      }
+
+      return right(session.copyWith(exerciseLogs: exerciseLogs));
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to start session: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, WorkoutSession>> completeWorkoutSession({
+    required String sessionId,
+    String? notes,
+  }) async {
+    try {
+      final response = await _client
+          .from('workout_sessions')
+          .update({
+            'completed_at': DateTime.now().toIso8601String(),
+            'notes': notes,
+          })
+          .eq('id', sessionId)
+          .select('*, workout_plans(name)')
+          .single();
+
+      final planName = response['workout_plans']?['name'] as String?;
+
+      return right(WorkoutSession.fromJson(_snakeToCamel({
+        ...response,
+        'plan_name': planName,
+      }..remove('workout_plans'))));
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to complete session: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, WorkoutSession>> getWorkoutSession(
+      String sessionId) async {
+    try {
+      final response = await _client
+          .from('workout_sessions')
+          .select('*, workout_plans(name)')
+          .eq('id', sessionId)
+          .single();
+
+      final planName = response['workout_plans']?['name'] as String?;
+
+      // Get exercise logs with plan exercise details
+      final logsResponse = await _client
+          .from('exercise_logs')
+          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .eq('session_id', sessionId)
+          .order('created_at', ascending: true);
+
+      final logs = (logsResponse as List).map((log) {
+        final logData = log as Map<String, dynamic>;
+        final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
+        final exerciseName = planExercise?['exercises']?['name'] as String?;
+
+        return ExerciseLog.fromJson(_snakeToCamel({
+          ...logData,
+          'exercise_name': exerciseName,
+          'target_sets': planExercise?['sets'],
+          'target_reps': planExercise?['reps'],
+          'target_tempo': planExercise?['tempo'],
+          'target_rest': planExercise?['rest_seconds'],
+        }..remove('plan_exercises')));
+      }).toList();
+
+      return right(WorkoutSession.fromJson(_snakeToCamel({
+        ...response,
+        'plan_name': planName,
+      }..remove('workout_plans'))).copyWith(exerciseLogs: logs));
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to load session: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<WorkoutSession>>> getClientWorkoutSessions(
+    String clientId, {
+    int limit = 50,
+  }) async {
+    try {
+      final response = await _client
+          .from('workout_sessions')
+          .select('*, workout_plans(name)')
+          .eq('client_id', clientId)
+          .order('started_at', ascending: false)
+          .limit(limit);
+
+      final sessions = (response as List).map((json) {
+        final data = json as Map<String, dynamic>;
+        final planName = data['workout_plans']?['name'] as String?;
+
+        return WorkoutSession.fromJson(_snakeToCamel({
+          ...data,
+          'plan_name': planName,
+        }..remove('workout_plans')));
+      }).toList();
+
+      return right(sessions);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to load sessions: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<WorkoutSession>>> getSessionsByPlan(
+    String clientId,
+    String planId,
+  ) async {
+    try {
+      final response = await _client
+          .from('workout_sessions')
+          .select('*, workout_plans(name)')
+          .eq('client_id', clientId)
+          .eq('plan_id', planId)
+          .order('started_at', ascending: false);
+
+      final sessions = (response as List).map((json) {
+        final data = json as Map<String, dynamic>;
+        final planName = data['workout_plans']?['name'] as String?;
+
+        return WorkoutSession.fromJson(_snakeToCamel({
+          ...data,
+          'plan_name': planName,
+        }..remove('workout_plans')));
+      }).toList();
+
+      return right(sessions);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to load sessions: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> deleteWorkoutSession(String sessionId) async {
+    try {
+      // Exercise logs cascade delete
+      await _client.from('workout_sessions').delete().eq('id', sessionId);
+      return right(unit);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to delete session: $e'));
+    }
+  }
+
+  // ===== Exercise Logs =====
+
+  @override
+  Future<Either<Failure, ExerciseLog>> saveExerciseLog(ExerciseLog log) async {
+    try {
+      final setDataJson = log.setData.map((s) => s.toJson()).toList();
+
+      final response = await _client
+          .from('exercise_logs')
+          .insert({
+            'session_id': log.sessionId,
+            'plan_exercise_id': log.planExerciseId,
+            'completed': log.completed,
+            'set_data': setDataJson,
+            'notes': log.notes,
+          })
+          .select()
+          .single();
+
+      return right(ExerciseLog.fromJson(_snakeToCamel(response)));
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to save exercise log: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ExerciseLog>>> getExerciseLogs(
+      String sessionId) async {
+    try {
+      final response = await _client
+          .from('exercise_logs')
+          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .eq('session_id', sessionId)
+          .order('created_at', ascending: true);
+
+      final logs = (response as List).map((log) {
+        final logData = log as Map<String, dynamic>;
+        final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
+        final exerciseName = planExercise?['exercises']?['name'] as String?;
+
+        return ExerciseLog.fromJson(_snakeToCamel({
+          ...logData,
+          'exercise_name': exerciseName,
+          'target_sets': planExercise?['sets'],
+          'target_reps': planExercise?['reps'],
+          'target_tempo': planExercise?['tempo'],
+          'target_rest': planExercise?['rest_seconds'],
+        }..remove('plan_exercises')));
+      }).toList();
+
+      return right(logs);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to load exercise logs: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ExerciseLog>> updateExerciseLog(
+      ExerciseLog log) async {
+    try {
+      final setDataJson = log.setData.map((s) => s.toJson()).toList();
+
+      final response = await _client
+          .from('exercise_logs')
+          .update({
+            'completed': log.completed,
+            'set_data': setDataJson,
+            'notes': log.notes,
+          })
+          .eq('id', log.id)
+          .select()
+          .single();
+
+      return right(log.copyWith(
+        id: response['id'] as String,
+      ));
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to update exercise log: $e'));
     }
   }
 

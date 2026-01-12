@@ -73,10 +73,13 @@ class SupabaseCheckinRepository implements CheckinRepository {
   @override
   Future<Either<Failure, DailyCheckin>> saveCheckin(DailyCheckin checkin) async {
     try {
-      final data = checkin.toJson()
+      final camelData = checkin.toJson()
         ..remove('id')
-        ..remove('created_at')
-        ..remove('updated_at');
+        ..remove('createdAt')
+        ..remove('updatedAt');
+
+      // Convert camelCase to snake_case for database
+      final data = _camelToSnake(camelData);
 
       // Convert date to string format
       data['date'] = (checkin.date).toIso8601String().split('T')[0];
@@ -104,10 +107,11 @@ class SupabaseCheckinRepository implements CheckinRepository {
       if (e.code == '23505') {
         // Unique violation - try upsert
         try {
-          final data = checkin.toJson()
+          final camelData = checkin.toJson()
             ..remove('id')
-            ..remove('created_at')
-            ..remove('updated_at');
+            ..remove('createdAt')
+            ..remove('updatedAt');
+          final data = _camelToSnake(camelData);
           data['date'] = (checkin.date).toIso8601String().split('T')[0];
 
           final response = await _client
@@ -185,5 +189,16 @@ class SupabaseCheckinRepository implements CheckinRepository {
     } catch (e) {
       return left(Failure.unknown(error: e));
     }
+  }
+
+  /// Convert camelCase keys to snake_case for database
+  Map<String, dynamic> _camelToSnake(Map<String, dynamic> json) {
+    return json.map((key, value) {
+      final snakeKey = key.replaceAllMapped(
+        RegExp(r'[A-Z]'),
+        (match) => '_${match.group(0)!.toLowerCase()}',
+      );
+      return MapEntry(snakeKey, value);
+    });
   }
 }

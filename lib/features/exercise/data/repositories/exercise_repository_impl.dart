@@ -189,14 +189,27 @@ class SupabaseExerciseRepository implements ExerciseRepository {
   }
 
   /// Convert snake_case keys to camelCase for Dart models
+  /// Also converts video_path to full storage URL
   Map<String, dynamic> _snakeToCamel(Map<String, dynamic> json) {
-    return json.map((key, value) {
+    final result = json.map((key, value) {
       final camelKey = key.replaceAllMapped(
         RegExp(r'_([a-z])'),
         (match) => match.group(1)!.toUpperCase(),
       );
       return MapEntry(camelKey, value);
     });
+
+    // Convert video_path to full storage URL
+    if (result['videoPath'] != null && result['videoPath'].toString().isNotEmpty) {
+      final videoPath = result['videoPath'] as String;
+      // Generate signed URL for video playback
+      result['videoUrl'] = _client.storage
+          .from('exercise-videos')
+          .getPublicUrl(videoPath);
+    }
+    result.remove('videoPath');
+
+    return result;
   }
 
   /// Convert camelCase keys to snake_case for Supabase

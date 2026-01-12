@@ -1,0 +1,48 @@
+# Render Blueprint for FitnessFun Flutter Web App
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: fitness-fun
+    runtime: static
+    buildCommand: ./scripts/render-build.sh
+    staticPublishPath: ./build/web
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: FLUTTER_VERSION
+        value: "3.27.1"
+    headers:
+      # Security headers
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      # Cache static assets
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /icons/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      # Don't cache HTML/JS for updates
+      - path: /
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /main.dart.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /flutter_service_worker.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+    routes:
+      # SPA fallback - all routes serve index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    previews:
+      generation: automatic
