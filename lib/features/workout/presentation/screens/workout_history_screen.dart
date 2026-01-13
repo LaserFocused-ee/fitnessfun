@@ -472,84 +472,12 @@ class _SessionDetailSheet extends StatelessWidget {
             itemCount: session.exerciseLogs.length,
             itemBuilder: (context, index) {
               final log = session.exerciseLogs[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: log.completed
-                        ? colorScheme.primaryContainer
-                        : colorScheme.surfaceContainerHighest,
-                    child: log.completed
-                        ? Icon(
-                            Icons.check,
-                            size: 18,
-                            color: colorScheme.onPrimaryContainer,
-                          )
-                        : Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ),
-                  title: Text(
-                    log.exerciseName ?? 'Exercise ${index + 1}',
-                    style: TextStyle(
-                      decoration:
-                          log.completed ? null : TextDecoration.lineThrough,
-                      color: log.completed
-                          ? null
-                          : colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  subtitle: _buildSubtitle(log),
-                  trailing: log.notes != null && log.notes!.isNotEmpty
-                      ? Tooltip(
-                          message: log.notes!,
-                          child: Icon(
-                            Icons.note,
-                            size: 20,
-                            color: colorScheme.primary,
-                          ),
-                        )
-                      : null,
-                ),
-              );
+              return _ExerciseDetailCard(log: log, index: index);
             },
           ),
         ),
       ],
     );
-  }
-
-  Widget? _buildSubtitle(ExerciseLog log) {
-    final parts = <String>[];
-
-    // Show sets completed
-    final completedSets = log.setData.where((s) => s.completed).length;
-    final totalSets = log.setData.length;
-    if (totalSets > 0) {
-      parts.add('$completedSets/$totalSets sets');
-    }
-
-    // Show reps/weight summary from set data
-    if (log.setData.isNotEmpty) {
-      final setsWithData = log.setData.where((s) => s.reps != null || s.weight != null).toList();
-      if (setsWithData.isNotEmpty) {
-        final sample = setsWithData.first;
-        final reps = sample.reps ?? sample.targetReps;
-        final weight = sample.weight ?? sample.targetWeight;
-        if (reps != null) parts.add('$reps reps');
-        if (weight != null) parts.add('${weight}kg');
-      }
-    }
-
-    if (parts.isEmpty) return null;
-
-    return Text(parts.join(' \u2022 '));
   }
 
   String _formatDuration(Duration duration) {
@@ -560,5 +488,221 @@ class _SessionDetailSheet extends StatelessWidget {
       return '${hours}h ${minutes}m';
     }
     return '${minutes}m';
+  }
+}
+
+/// Expandable card showing exercise details with individual sets
+class _ExerciseDetailCard extends StatelessWidget {
+  const _ExerciseDetailCard({required this.log, required this.index});
+
+  final ExerciseLog log;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final completedSets = log.setData.where((s) => s.completed).length;
+    final totalSets = log.setData.length;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          radius: 16,
+          backgroundColor: log.completed
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceContainerHighest,
+          child: log.completed
+              ? Icon(
+                  Icons.check,
+                  size: 18,
+                  color: colorScheme.onPrimaryContainer,
+                )
+              : Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+        ),
+        title: Text(
+          log.exerciseName ?? 'Exercise ${index + 1}',
+          style: TextStyle(
+            decoration: log.completed ? null : TextDecoration.lineThrough,
+            color: log.completed
+                ? null
+                : colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+        subtitle: Text(
+          '$completedSets/$totalSets sets',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        children: [
+          // Exercise notes
+          if (log.notes != null && log.notes!.isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.note_outlined,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      log.notes!,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Individual sets
+          ...log.setData.map((set) => _SetRow(set: set, colorScheme: colorScheme, theme: theme)),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// Row showing individual set data
+class _SetRow extends StatelessWidget {
+  const _SetRow({
+    required this.set,
+    required this.colorScheme,
+    required this.theme,
+  });
+
+  final SetLog set;
+  final ColorScheme colorScheme;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final reps = set.reps ?? set.targetReps;
+    final weight = set.weight ?? set.targetWeight;
+    final wasModified = (set.reps != null && set.reps != set.targetReps) ||
+        (set.weight != null && set.weight != set.targetWeight);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          // Set number with completion indicator
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: set.completed
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surfaceContainerHighest,
+            ),
+            child: Center(
+              child: set.completed
+                  ? Icon(Icons.check, size: 16, color: colorScheme.onPrimaryContainer)
+                  : Text(
+                      '${set.setNumber}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Reps
+          if (reps != null)
+            _SetDataChip(
+              label: '$reps reps',
+              isModified: set.reps != null && set.reps != set.targetReps,
+              colorScheme: colorScheme,
+            ),
+          if (reps != null && weight != null) const SizedBox(width: 8),
+
+          // Weight
+          if (weight != null)
+            _SetDataChip(
+              label: '${weight}kg',
+              isModified: set.weight != null && set.weight != set.targetWeight,
+              colorScheme: colorScheme,
+            ),
+
+          const Spacer(),
+
+          // Modified indicator
+          if (wasModified)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colorScheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'modified',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: colorScheme.onTertiaryContainer,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chip showing set data with modification highlight
+class _SetDataChip extends StatelessWidget {
+  const _SetDataChip({
+    required this.label,
+    required this.isModified,
+    required this.colorScheme,
+  });
+
+  final String label;
+  final bool isModified;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isModified
+            ? colorScheme.tertiaryContainer
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: isModified
+              ? colorScheme.onTertiaryContainer
+              : colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
   }
 }

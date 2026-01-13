@@ -107,7 +107,7 @@ mixin WorkoutSessionRepositoryMixin {
       final response = await client
           .from('workout_sessions')
           .update({
-            'completed_at': DateTime.now().toIso8601String(),
+            'completed_at': DateTime.now().toUtc().toIso8601String(),
             'notes': notes,
           })
           .eq('id', sessionId)
