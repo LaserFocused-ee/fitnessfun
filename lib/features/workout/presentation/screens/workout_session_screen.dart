@@ -1,17 +1,13 @@
-import 'dart:io';
-
-import 'package:chewie/chewie.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../../../shared/services/video_cache_service.dart';
 import '../../domain/entities/workout_session.dart';
 import '../providers/workout_provider.dart';
 import '../providers/workout_timer_provider.dart';
+import '../widgets/info_chip.dart';
+import '../widgets/video_player_dialog.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   const WorkoutSessionScreen({
@@ -154,7 +150,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   void _showVideoModal(BuildContext context, String title, String videoUrl) {
     showDialog(
       context: context,
-      builder: (context) => _VideoPlayerDialog(
+      builder: (context) => VideoPlayerDialog(
         title: title,
         videoUrl: videoUrl,
       ),
@@ -983,22 +979,22 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
               runSpacing: 8,
               children: [
                 if (widget.log.targetSets > 0)
-                  _InfoChip(
+                  InfoChip(
                     label: '${widget.log.targetSets} sets',
                     color: colorScheme.primaryContainer,
                   ),
                 if (widget.log.targetRepsDisplay != null)
-                  _InfoChip(
+                  InfoChip(
                     label: '${widget.log.targetRepsDisplay} reps',
                     color: colorScheme.secondaryContainer,
                   ),
                 if (widget.log.targetTempo != null)
-                  _InfoChip(
+                  InfoChip(
                     label: 'Tempo: ${widget.log.targetTempo}',
                     color: colorScheme.tertiaryContainer,
                   ),
                 if (widget.log.targetRestDisplay != null)
-                  _InfoChip(
+                  InfoChip(
                     label: 'Rest: ${widget.log.targetRestDisplay}',
                     color: colorScheme.surfaceContainerHighest,
                   ),
@@ -1161,246 +1157,6 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.label,
-    required this.color,
-  });
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium,
-      ),
-    );
-  }
-}
-
-class _VideoPlayerDialog extends StatefulWidget {
-  const _VideoPlayerDialog({
-    required this.title,
-    required this.videoUrl,
-  });
-
-  final String title;
-  final String videoUrl;
-
-  @override
-  State<_VideoPlayerDialog> createState() => _VideoPlayerDialogState();
-}
-
-class _VideoPlayerDialogState extends State<_VideoPlayerDialog> {
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  bool _isDownloading = true;
-  double _downloadProgress = 0.0;
-  bool _isInitializing = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _downloadAndPlay();
-  }
-
-  Future<void> _downloadAndPlay() async {
-    final cacheService = VideoCacheService.instance;
-
-    await for (final state in cacheService.getVideo(widget.videoUrl)) {
-      if (!mounted) return;
-
-      switch (state) {
-        case VideoDownloading(progress: final progress):
-          setState(() {
-            _isDownloading = true;
-            _downloadProgress = progress;
-          });
-        case VideoCompleted(path: final path):
-          setState(() {
-            _isDownloading = false;
-            _isInitializing = true;
-          });
-          await _initializePlayer(path);
-        case VideoError(message: final message):
-          setState(() {
-            _isDownloading = false;
-            _error = message;
-          });
-      }
-    }
-  }
-
-  Future<void> _initializePlayer(String videoPath) async {
-    try {
-      if (kIsWeb) {
-        _videoController =
-            VideoPlayerController.networkUrl(Uri.parse(videoPath));
-      } else {
-        _videoController = VideoPlayerController.file(File(videoPath));
-      }
-
-      await _videoController!.initialize();
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoController!,
-        autoPlay: true,
-        looping: false,
-        showControls: true,
-        aspectRatio: _videoController!.value.aspectRatio,
-      );
-
-      if (mounted) {
-        setState(() => _isInitializing = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isInitializing = false;
-          _error = e.toString();
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _chewieController?.dispose();
-    _videoController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final screenSize = MediaQuery.of(context).size;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(16),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: screenSize.width * 0.9,
-          maxHeight: screenSize.height * 0.8,
-        ),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: _buildVideoContent(colorScheme),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoContent(ColorScheme colorScheme) {
-    if (_isDownloading) {
-      return ColoredBox(
-        color: Colors.black,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: CircularProgressIndicator(
-                  value: _downloadProgress > 0 ? _downloadProgress : null,
-                  color: colorScheme.primary,
-                ),
-              ),
-              if (_downloadProgress > 0) ...[
-                const SizedBox(height: 16),
-                Text(
-                  '${(_downloadProgress * 100).toInt()}%',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_isInitializing) {
-      return ColoredBox(
-        color: Colors.black,
-        child: Center(
-          child: CircularProgressIndicator(color: colorScheme.primary),
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return ColoredBox(
-        color: Colors.black,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, color: colorScheme.error, size: 48),
-              const SizedBox(height: 16),
-              Text('Failed to load video',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9))),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ColoredBox(
-      color: Colors.black,
-      child: _chewieController != null
-          ? Chewie(controller: _chewieController!)
-          : const SizedBox.shrink(),
     );
   }
 }
