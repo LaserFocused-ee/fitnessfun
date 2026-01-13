@@ -525,23 +525,26 @@ class _SessionDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget? _buildSubtitle(dynamic log) {
+  Widget? _buildSubtitle(ExerciseLog log) {
     final parts = <String>[];
 
-    if (log.actualSets != null) {
-      parts.add('${log.actualSets} sets');
-    } else if (log.targetSets != null) {
-      parts.add('${log.targetSets} sets');
+    // Show sets completed
+    final completedSets = log.setData.where((s) => s.completed).length;
+    final totalSets = log.setData.length;
+    if (totalSets > 0) {
+      parts.add('$completedSets/$totalSets sets');
     }
 
-    if (log.actualReps != null) {
-      parts.add('${log.actualReps} reps');
-    } else if (log.targetReps != null) {
-      parts.add('${log.targetReps} reps');
-    }
-
-    if (log.actualWeight != null) {
-      parts.add(log.actualWeight.toString());
+    // Show reps/weight summary from set data
+    if (log.setData.isNotEmpty) {
+      final setsWithData = log.setData.where((s) => s.reps != null || s.weight != null).toList();
+      if (setsWithData.isNotEmpty) {
+        final sample = setsWithData.first;
+        final reps = sample.reps ?? sample.targetReps;
+        final weight = sample.weight ?? sample.targetWeight;
+        if (reps != null) parts.add('$reps reps');
+        if (weight != null) parts.add('${weight}kg');
+      }
     }
 
     if (parts.isEmpty) return null;

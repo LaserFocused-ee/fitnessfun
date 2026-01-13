@@ -248,19 +248,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     itemBuilder: (context, index) {
                       final log = session.exerciseLogs[index];
                       final videoUrl = exerciseVideos[log.planExerciseId];
-                      // Calculate remaining rest seconds
-                      final isResting = restTimer.state != GlobalRestState.working;
-                      final restSecondsRemaining = isResting
-                          ? (restTimer.maxSeconds - restTimer.elapsed.inSeconds).clamp(0, restTimer.maxSeconds)
-                          : null;
-
                       return _ExerciseLogCard(
                         log: log,
                         index: index,
                         videoUrl: videoUrl,
-                        isResting: isResting,
-                        restSecondsRemaining: restSecondsRemaining,
-                        restTargetMax: isResting ? restTimer.maxSeconds : null,
+                        isResting: restTimer.state != GlobalRestState.working,
                         onVideoTap: videoUrl != null
                             ? () => _showVideoModal(
                                 context, log.exerciseName ?? 'Exercise', videoUrl)
@@ -369,8 +361,6 @@ class _ExerciseLogCard extends StatefulWidget {
     required this.isResting,
     this.videoUrl,
     this.onVideoTap,
-    this.restSecondsRemaining,
-    this.restTargetMax,
   });
 
   final ExerciseLog log;
@@ -378,8 +368,6 @@ class _ExerciseLogCard extends StatefulWidget {
   final String? videoUrl;
   final VoidCallback? onVideoTap;
   final bool isResting;
-  final int? restSecondsRemaining; // Countdown seconds remaining
-  final int? restTargetMax; // Target max rest for display
   final void Function(ExerciseLog updatedLog, bool isLastSet, DateTime completedAt) onSetComplete;
   final VoidCallback onStartSet;
   final Future<void> Function(ExerciseLog) onUpdate;
@@ -1060,41 +1048,6 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                         fontWeight: FontWeight.bold,
                         color: colorScheme.onPrimaryContainer,
                       ),
-                    ),
-                  ),
-                ],
-                // Rest countdown timer
-                if (widget.isResting && widget.restSecondsRemaining != null) ...[
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: widget.restSecondsRemaining! <= 0
-                          ? Colors.green.shade600
-                          : Colors.orange.shade600,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          widget.restSecondsRemaining! <= 0
-                              ? Icons.play_arrow
-                              : Icons.timer_outlined,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.restSecondsRemaining! <= 0
-                              ? 'GO!'
-                              : '${widget.restSecondsRemaining}s',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],

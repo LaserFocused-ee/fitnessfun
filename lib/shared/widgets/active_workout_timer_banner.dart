@@ -116,8 +116,8 @@ class ActiveWorkoutTimerBanner extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        // Show rest state label + workout elapsed time
-                        '${_getRestLabel(restTimer.state)}${elapsed.toWorkoutDisplay()}',
+                        // Show rest state label with countdown + workout elapsed time
+                        '${_getRestLabel(restTimer)}${elapsed.toWorkoutDisplay()}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: textColor,
                           fontWeight: FontWeight.bold,
@@ -185,16 +185,31 @@ class ActiveWorkoutTimerBanner extends ConsumerWidget {
     }
   }
 
-  String _getRestLabel(GlobalRestState state) {
-    switch (state) {
+  String _getRestLabel(
+      ({GlobalRestState state, Duration elapsed, int minSeconds, int maxSeconds})
+          restTimer) {
+    switch (restTimer.state) {
       case GlobalRestState.working:
         return '';
       case GlobalRestState.resting:
-        return 'REST ';
       case GlobalRestState.ready:
-        return 'READY ';
       case GlobalRestState.go:
-        return 'GO! ';
+        // Calculate remaining time (countdown from minSeconds)
+        final remaining = restTimer.minSeconds - restTimer.elapsed.inSeconds;
+        final displayRemaining = remaining.clamp(0, restTimer.minSeconds);
+        final mins = displayRemaining ~/ 60;
+        final secs = displayRemaining % 60;
+        final countdownStr = mins > 0
+            ? '$mins:${secs.toString().padLeft(2, '0')}'
+            : '${secs}s';
+
+        if (remaining <= 0) {
+          return 'GO! ';
+        } else if (restTimer.state == GlobalRestState.ready) {
+          return 'READY ';
+        } else {
+          return 'REST ($countdownStr) ';
+        }
     }
   }
 }

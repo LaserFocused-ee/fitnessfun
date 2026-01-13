@@ -578,8 +578,16 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     try {
       final response = await _client
           .from('workout_sessions')
-          .select('*, workout_plans(name)')
+          .select('''
+            *,
+            workout_plans(name),
+            exercise_logs(
+              *,
+              plan_exercises(tempo, rest_min, rest_max, exercises(name))
+            )
+          ''')
           .eq('client_id', clientId)
+          .not('completed_at', 'is', null) // Only completed sessions
           .order('started_at', ascending: false)
           .limit(limit);
 
@@ -587,9 +595,26 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         final data = json as Map<String, dynamic>;
         final planName = data['workout_plans']?['name'] as String?;
 
+        // Parse exercise logs
+        final exerciseLogsJson = data['exercise_logs'] as List? ?? [];
+        final exerciseLogs = exerciseLogsJson.map((logData) {
+          final log = logData as Map<String, dynamic>;
+          final planExercise = log['plan_exercises'] as Map<String, dynamic>?;
+          final exerciseName = planExercise?['exercises']?['name'] as String?;
+
+          return _snakeToCamel({
+            ...log,
+            'exercise_name': exerciseName,
+            'target_tempo': planExercise?['tempo'],
+            'target_rest_min': planExercise?['rest_min'],
+            'target_rest_max': planExercise?['rest_max'],
+          }..remove('plan_exercises'));
+        }).toList();
+
         return WorkoutSession.fromJson(_snakeToCamel({
           ...data,
           'plan_name': planName,
+          'exercise_logs': exerciseLogs,
         }..remove('workout_plans')));
       }).toList();
 
@@ -780,14 +805,19 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     }
   }
 
-  /// Convert snake_case keys to camelCase for Dart models
-  Map<String, dynamic> _snakeToCamel(Map<String, dynamic> json) {
-    return json.map((key, value) {
-      final camelKey = key.replaceAllMapped(
-        RegExp(r'_([a-z])'),
-        (match) => match.group(1)!.toUpperCase(),
-      );
-      return MapEntry(camelKey, value);
-    });
+  /// Recursively convert snake_case keys to camelCase for Dart models
+  dynamic _snakeToCamel(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value.map((key, v) {
+        final camelKey = key.replaceAllMapped(
+          RegExp(r'_([a-z])'),
+          (match) => match.group(1)!.toUpperCase(),
+        );
+        return MapEntry(camelKey, _snakeToCamel(v));
+      });
+    } else if (value is List) {
+      return value.map(_snakeToCamel).toList();
+    }
+    return value;
   }
 }
