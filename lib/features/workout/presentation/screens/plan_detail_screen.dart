@@ -194,25 +194,24 @@ class PlanDetailScreen extends ConsumerWidget {
                                     spacing: 8,
                                     runSpacing: 8,
                                     children: [
-                                      if (exercise.sets != null)
+                                      if (exercise.sets.isNotEmpty) ...[
                                         _InfoChip(
-                                          label: '${exercise.sets} sets',
+                                          label: '${exercise.sets.length} sets',
                                           color: colorScheme.primaryContainer,
                                         ),
-                                      if (exercise.reps != null)
                                         _InfoChip(
-                                          label: '${exercise.reps} reps',
+                                          label: _buildRepsLabel(exercise),
                                           color: colorScheme.secondaryContainer,
                                         ),
+                                      ],
                                       if (exercise.tempo != null)
                                         _InfoChip(
                                           label: 'Tempo: ${exercise.tempo}',
                                           color: colorScheme.tertiaryContainer,
                                         ),
-                                      if (exercise.restSeconds != null)
+                                      if (exercise.restMin != null)
                                         _InfoChip(
-                                          label:
-                                              'Rest: ${exercise.restSeconds}s',
+                                          label: _buildRestLabel(exercise),
                                           color: colorScheme.surfaceContainerHighest,
                                         ),
                                     ],
@@ -643,6 +642,25 @@ class _VideoPlayerState extends State<_VideoPlayer> {
           : const SizedBox.shrink(),
     );
   }
+}
+
+/// Build reps label from exercise sets (shows first set's reps range)
+String _buildRepsLabel(dynamic exercise) {
+  if (exercise.sets.isEmpty) return '';
+  final firstSet = exercise.sets.first;
+  if (firstSet.repsMax != null && firstSet.repsMax != firstSet.reps) {
+    return '${firstSet.reps}-${firstSet.repsMax} reps';
+  }
+  return '${firstSet.reps} reps';
+}
+
+/// Build rest label from exercise rest range
+String _buildRestLabel(dynamic exercise) {
+  if (exercise.restMin == null) return '';
+  if (exercise.restMax != null && exercise.restMax != exercise.restMin) {
+    return 'Rest: ${exercise.restMin}-${exercise.restMax}s';
+  }
+  return 'Rest: ${exercise.restMin}s';
 }
 
 class _InfoChip extends StatelessWidget {

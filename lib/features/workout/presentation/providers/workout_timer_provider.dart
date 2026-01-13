@@ -1,10 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../domain/entities/workout_session.dart';
 import 'workout_provider.dart';
 
+part 'workout_timer_provider.freezed.dart';
 part 'workout_timer_provider.g.dart';
 
 /// Stream that emits every second for timer updates
@@ -34,42 +35,118 @@ Duration workoutTimer(Ref ref) {
 /// Rest timer state for global access
 enum GlobalRestState { working, resting, ready, go }
 
-/// Global rest timer state - keeps alive across navigation
+/// Configuration for the rest timer context
+@freezed
+class RestTimerConfig with _$RestTimerConfig {
+  const factory RestTimerConfig({
+    required int minSeconds,
+    required int maxSeconds,
+    required DateTime lastSetCompletedAt,
+  }) = _RestTimerConfig;
+}
+
+/// Context notifier that stores rest timer configuration
+/// Keeps alive across navigation so rest state persists
 @Riverpod(keepAlive: true)
-class GlobalRestTimer extends _$GlobalRestTimer {
-  Timer? _timer;
-
+class RestTimerContext extends _$RestTimerContext {
   @override
-  ({GlobalRestState state, Duration elapsed, int minSeconds, int maxSeconds}) build() {
-    ref.onDispose(() => _timer?.cancel());
-    return (state: GlobalRestState.working, elapsed: Duration.zero, minSeconds: 0, maxSeconds: 0);
+  RestTimerConfig? build() => null;
+
+  /// Start rest timer with the completion timestamp
+  void startRest({
+    required int minSeconds,
+    required int maxSeconds,
+    required DateTime completedAt,
+  }) {
+    state = RestTimerConfig(
+      minSeconds: minSeconds,
+      maxSeconds: maxSeconds,
+      lastSetCompletedAt: completedAt.toUtc(),
+    );
   }
 
-  void startRest(int minSeconds, int maxSeconds) {
-    _timer?.cancel();
-    state = (state: GlobalRestState.resting, elapsed: Duration.zero, minSeconds: minSeconds, maxSeconds: maxSeconds);
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final newElapsed = state.elapsed + const Duration(seconds: 1);
-      final restSeconds = newElapsed.inSeconds;
-
-      GlobalRestState newState;
-      if (restSeconds >= state.maxSeconds) {
-        newState = GlobalRestState.go;
-      } else if (restSeconds >= state.minSeconds) {
-        newState = GlobalRestState.ready;
-      } else {
-        newState = GlobalRestState.resting;
-      }
-
-      state = (state: newState, elapsed: newElapsed, minSeconds: state.minSeconds, maxSeconds: state.maxSeconds);
-    });
-  }
-
+  /// Stop rest timer and return to working state
   void stopRest() {
-    _timer?.cancel();
-    state = (state: GlobalRestState.working, elapsed: Duration.zero, minSeconds: 0, maxSeconds: 0);
+    state = null;
   }
+
+  /// Restore rest context from an active session's last completed set
+  void restoreFromSession(WorkoutSession session) {
+    DateTime? lastCompleted;
+    int? restMin;
+    int? restMax;
+
+    // Find the most recently completed set across all exercises
+    for (final log in session.exerciseLogs) {
+      for (final set in log.setData) {
+        if (set.completedAt != null) {
+          if (lastCompleted == null ||
+              set.completedAt!.isAfter(lastCompleted)) {
+            lastCompleted = set.completedAt;
+            restMin = log.targetRestMin;
+            restMax = log.targetRestMax;
+          }
+        }
+      }
+    }
+
+    if (lastCompleted != null && restMin != null) {
+      state = RestTimerConfig(
+        minSeconds: restMin,
+        maxSeconds: restMax ?? restMin + 30,
+        lastSetCompletedAt: lastCompleted.toUtc(),
+      );
+    }
+  }
+}
+
+/// Computed rest state - derives everything from timestamps, no Timer needed
+/// This provider re-evaluates every second via the ticker subscription
+@riverpod
+({GlobalRestState state, Duration elapsed, int minSeconds, int maxSeconds})
+    computedRestState(Ref ref) {
+  // Subscribe to ticker for updates every second
+  ref.watch(_tickerProvider);
+
+  final config = ref.watch(restTimerContextProvider);
+
+  if (config == null) {
+    return (
+      state: GlobalRestState.working,
+      elapsed: Duration.zero,
+      minSeconds: 0,
+      maxSeconds: 0,
+    );
+  }
+
+  final now = DateTime.now().toUtc();
+  final completedAtUtc = config.lastSetCompletedAt.toUtc();
+  final elapsed = now.difference(completedAtUtc);
+  final elapsedSeconds = elapsed.inSeconds;
+
+  GlobalRestState restState;
+  if (elapsedSeconds >= config.maxSeconds) {
+    restState = GlobalRestState.go;
+  } else if (elapsedSeconds >= config.minSeconds) {
+    restState = GlobalRestState.ready;
+  } else {
+    restState = GlobalRestState.resting;
+  }
+
+  return (
+    state: restState,
+    elapsed: elapsed.isNegative ? Duration.zero : elapsed,
+    minSeconds: config.minSeconds,
+    maxSeconds: config.maxSeconds,
+  );
+}
+
+/// Global rest timer provider - delegates to computedRestState for backward compatibility
+/// UI components can continue to use globalRestTimerProvider
+@riverpod
+({GlobalRestState state, Duration elapsed, int minSeconds, int maxSeconds})
+    globalRestTimer(Ref ref) {
+  return ref.watch(computedRestStateProvider);
 }
 
 /// Helper extension to format duration as HH:MM:SS or MM:SS

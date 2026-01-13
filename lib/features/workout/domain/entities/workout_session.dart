@@ -45,46 +45,41 @@ class ExerciseLog with _$ExerciseLog {
     required String sessionId,
     required String planExerciseId,
     String? exerciseName,
-    int? targetSets,
-    String? targetReps,
+    int? targetRestMin,
+    int? targetRestMax,
     String? targetTempo,
-    String? targetRest,
     @Default(false) bool completed,
     @Default([]) List<SetLog> setData,
     String? notes,
     DateTime? createdAt,
   }) = _ExerciseLog;
 
+  const ExerciseLog._();
+
   factory ExerciseLog.fromJson(Map<String, dynamic> json) =>
       _$ExerciseLogFromJson(json);
 
-  factory ExerciseLog.fromPlanExercise({
-    required String sessionId,
-    required String planExerciseId,
-    String? exerciseName,
-    int? targetSets,
-    String? targetReps,
-    String? targetTempo,
-    String? targetRest,
-  }) {
-    // Initialize empty set logs based on target sets
-    final numSets = targetSets ?? 3;
-    final setData = List.generate(
-      numSets,
-      (i) => SetLog(setNumber: i + 1),
-    );
+  /// Number of sets is derived from setData length
+  int get targetSets => setData.length;
 
-    return ExerciseLog(
-      id: '',
-      sessionId: sessionId,
-      planExerciseId: planExerciseId,
-      exerciseName: exerciseName,
-      targetSets: targetSets,
-      targetReps: targetReps,
-      targetTempo: targetTempo,
-      targetRest: targetRest,
-      setData: setData,
-    );
+  /// Get target reps display string (e.g., "8-10" or "10")
+  String? get targetRepsDisplay {
+    if (setData.isEmpty) return null;
+    final first = setData.first;
+    if (first.targetReps == null) return null;
+    if (first.targetRepsMax != null && first.targetRepsMax != first.targetReps) {
+      return '${first.targetReps}-${first.targetRepsMax}';
+    }
+    return '${first.targetReps}';
+  }
+
+  /// Get target rest display string (e.g., "90-120s" or "90s")
+  String? get targetRestDisplay {
+    if (targetRestMin == null) return null;
+    if (targetRestMax != null && targetRestMax != targetRestMin) {
+      return '$targetRestMin-${targetRestMax}s';
+    }
+    return '${targetRestMin}s';
   }
 }
 
@@ -93,9 +88,15 @@ class ExerciseLog with _$ExerciseLog {
 class SetLog with _$SetLog {
   const factory SetLog({
     required int setNumber,
-    String? reps,
-    String? weight,
+    // Target values from plan (for display/comparison)
+    int? targetReps,
+    int? targetRepsMax,
+    double? targetWeight,
+    // Actual logged values
+    int? reps,
+    double? weight,
     @Default(false) bool completed,
+    DateTime? completedAt,
   }) = _SetLog;
 
   factory SetLog.fromJson(Map<String, dynamic> json) => _$SetLogFromJson(json);

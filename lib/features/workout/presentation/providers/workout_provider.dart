@@ -7,6 +7,7 @@ import '../../data/repositories/workout_repository_impl.dart';
 import '../../domain/entities/workout_plan.dart';
 import '../../domain/entities/workout_session.dart';
 import '../../domain/repositories/workout_repository.dart';
+import 'workout_timer_provider.dart';
 
 part 'workout_provider.g.dart';
 
@@ -278,10 +279,31 @@ Future<WorkoutSession> workoutSessionById(
 }
 
 /// Notifier for managing an active workout session
-@riverpod
+/// Made keepAlive to persist across navigation and page refreshes
+@Riverpod(keepAlive: true)
 class ActiveWorkoutNotifier extends _$ActiveWorkoutNotifier {
   @override
   AsyncValue<WorkoutSession?> build() => const AsyncData(null);
+
+  /// Check for and restore any active session on startup
+  Future<void> checkAndRestoreActiveSession() async {
+    final profile = ref.read(currentProfileProvider).valueOrNull;
+    if (profile == null) return;
+
+    final repo = ref.read(workoutRepositoryProvider);
+    final result = await repo.getActiveSession(profile.id);
+
+    result.fold(
+      (failure) => null, // Silently fail - not critical
+      (session) {
+        if (session != null) {
+          state = AsyncData(session);
+          // Restore rest timer context from last completed set
+          ref.read(restTimerContextProvider.notifier).restoreFromSession(session);
+        }
+      },
+    );
+  }
 
   /// Start a new workout session from a plan
   Future<Either<Failure, WorkoutSession>> startSession({
@@ -367,8 +389,9 @@ class ActiveWorkoutNotifier extends _$ActiveWorkoutNotifier {
     result.fold(
       (failure) => null,
       (completedSession) {
-        // Clear active session and refresh history
+        // Clear active session, rest timer, and refresh history
         state = const AsyncData(null);
+        ref.read(restTimerContextProvider.notifier).stopRest();
         ref.invalidate(clientWorkoutHistoryProvider);
       },
     );
@@ -390,6 +413,7 @@ class ActiveWorkoutNotifier extends _$ActiveWorkoutNotifier {
       (failure) => null,
       (_) {
         state = const AsyncData(null);
+        ref.read(restTimerContextProvider.notifier).stopRest();
       },
     );
 
@@ -399,5 +423,6 @@ class ActiveWorkoutNotifier extends _$ActiveWorkoutNotifier {
   /// Clear the active session (without deleting)
   void clearSession() {
     state = const AsyncData(null);
+    ref.read(restTimerContextProvider.notifier).stopRest();
   }
 }

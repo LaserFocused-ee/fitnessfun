@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/error/failures.dart';
+import '../../domain/entities/plan_exercise_set.dart';
 import '../../domain/entities/workout_plan.dart';
 import '../../domain/entities/workout_session.dart';
 import '../../domain/repositories/workout_repository.dart';
@@ -43,10 +44,10 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           .eq('id', planId)
           .single();
 
-      // Get the exercises with their names and video paths
+      // Get the exercises with their names, video paths, and sets
       final exercisesResponse = await _client
           .from('plan_exercises')
-          .select('*, exercises(name, video_path)')
+          .select('*, exercises(name, video_path), plan_exercise_sets(*)')
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
@@ -64,11 +65,18 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
               .getPublicUrl(videoPath);
         }
 
+        // Parse the sets
+        final setsData = exerciseData['plan_exercise_sets'] as List? ?? [];
+        final sets = setsData
+            .map((s) => PlanExerciseSet.fromJson(_snakeToCamel(s as Map<String, dynamic>)))
+            .toList()
+          ..sort((a, b) => a.setNumber.compareTo(b.setNumber));
+
         return PlanExercise.fromJson(_snakeToCamel({
           ...exerciseData,
           'exercise_name': exerciseName,
           'exercise_video_url': videoUrl,
-        }..remove('exercises')));
+        }..remove('exercises')..remove('plan_exercise_sets'))).copyWith(sets: sets);
       }).toList();
 
       final plan = WorkoutPlan.fromJson(_snakeToCamel(planResponse))
@@ -139,27 +147,45 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
   Future<Either<Failure, PlanExercise>> addExerciseToPlan(
       PlanExercise exercise) async {
     try {
+      // Insert the plan_exercise
       final response = await _client
           .from('plan_exercises')
           .insert({
             'plan_id': exercise.planId,
             'exercise_id': exercise.exerciseId,
-            'sets': exercise.sets,
-            'reps': exercise.reps,
             'tempo': exercise.tempo,
-            'rest_seconds': exercise.restSeconds,
+            'rest_min': exercise.restMin,
+            'rest_max': exercise.restMax,
             'notes': exercise.notes,
             'order_index': exercise.orderIndex,
           })
           .select('*, exercises(name)')
           .single();
 
+      final planExerciseId = response['id'] as String;
       final exerciseName = response['exercises']?['name'] as String?;
+
+      // Insert the sets
+      final insertedSets = <PlanExerciseSet>[];
+      for (final set in exercise.sets) {
+        final setResponse = await _client
+            .from('plan_exercise_sets')
+            .insert({
+              'plan_exercise_id': planExerciseId,
+              'set_number': set.setNumber,
+              'reps': set.reps,
+              'reps_max': set.repsMax,
+              'weight': set.weight,
+            })
+            .select()
+            .single();
+        insertedSets.add(PlanExerciseSet.fromJson(_snakeToCamel(setResponse)));
+      }
 
       return right(PlanExercise.fromJson(_snakeToCamel({
         ...response,
         'exercise_name': exerciseName,
-      }..remove('exercises'))));
+      }..remove('exercises'))).copyWith(sets: insertedSets));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to add exercise: $e'));
     }
@@ -169,13 +195,13 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
   Future<Either<Failure, PlanExercise>> updatePlanExercise(
       PlanExercise exercise) async {
     try {
+      // Update the plan_exercise
       final response = await _client
           .from('plan_exercises')
           .update({
-            'sets': exercise.sets,
-            'reps': exercise.reps,
             'tempo': exercise.tempo,
-            'rest_seconds': exercise.restSeconds,
+            'rest_min': exercise.restMin,
+            'rest_max': exercise.restMax,
             'notes': exercise.notes,
             'order_index': exercise.orderIndex,
           })
@@ -185,10 +211,32 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       final exerciseName = response['exercises']?['name'] as String?;
 
+      // Replace the sets: delete old ones, insert new ones
+      await _client
+          .from('plan_exercise_sets')
+          .delete()
+          .eq('plan_exercise_id', exercise.id);
+
+      final insertedSets = <PlanExerciseSet>[];
+      for (final set in exercise.sets) {
+        final setResponse = await _client
+            .from('plan_exercise_sets')
+            .insert({
+              'plan_exercise_id': exercise.id,
+              'set_number': set.setNumber,
+              'reps': set.reps,
+              'reps_max': set.repsMax,
+              'weight': set.weight,
+            })
+            .select()
+            .single();
+        insertedSets.add(PlanExerciseSet.fromJson(_snakeToCamel(setResponse)));
+      }
+
       return right(PlanExercise.fromJson(_snakeToCamel({
         ...response,
         'exercise_name': exerciseName,
-      }..remove('exercises'))));
+      }..remove('exercises'))).copyWith(sets: insertedSets));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to update exercise: $e'));
     }
@@ -375,10 +423,10 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get the plan exercises to create initial logs
+      // Get the plan exercises with their sets
       final planExercises = await _client
           .from('plan_exercises')
-          .select('*, exercises(name)')
+          .select('*, exercises(name), plan_exercise_sets(*)')
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
@@ -394,18 +442,28 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             : DateTime.now().toUtc(),
       );
 
-      // Create empty exercise logs for each plan exercise
+      // Create exercise logs for each plan exercise with set data from plan_exercise_sets
       final exerciseLogs = <ExerciseLog>[];
       for (final pe in planExercises as List) {
         final exerciseData = pe as Map<String, dynamic>;
         final exerciseName = exerciseData['exercises']?['name'] as String?;
-        final targetSets = exerciseData['sets'] as int? ?? 3;
 
-        // Initialize empty set data based on target sets
-        final setData = List.generate(
-          targetSets,
-          (i) => {'setNumber': i + 1, 'reps': null, 'weight': null, 'completed': false},
-        );
+        // Get the sets for this exercise
+        final planSets = (exerciseData['plan_exercise_sets'] as List? ?? [])
+          ..sort((a, b) => (a['set_number'] as int).compareTo(b['set_number'] as int));
+
+        // Initialize set data with target values from plan_exercise_sets
+        final setData = planSets.isEmpty
+            ? [{'setNumber': 1, 'targetReps': 10, 'reps': null, 'weight': null, 'completed': false}]
+            : planSets.map((ps) => {
+                'setNumber': ps['set_number'],
+                'targetReps': ps['reps'],
+                'targetRepsMax': ps['reps_max'],
+                'targetWeight': ps['weight'],
+                'reps': null,
+                'weight': null,
+                'completed': false,
+              }).toList();
 
         final logResponse = await _client
             .from('exercise_logs')
@@ -421,10 +479,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         exerciseLogs.add(ExerciseLog.fromJson(_snakeToCamel({
           ...logResponse,
           'exercise_name': exerciseName,
-          'target_sets': exerciseData['sets'],
-          'target_reps': exerciseData['reps'],
+          'target_rest_min': exerciseData['rest_min'],
+          'target_rest_max': exerciseData['rest_max'],
           'target_tempo': exerciseData['tempo'],
-          'target_rest': exerciseData['rest_seconds'],
         })));
       }
 
@@ -476,7 +533,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
       // Get exercise logs with plan exercise details
       final logsResponse = await _client
           .from('exercise_logs')
-          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .select('*, plan_exercises(tempo, rest_min, rest_max, exercises(name))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
@@ -488,10 +545,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         return ExerciseLog.fromJson(_snakeToCamel({
           ...logData,
           'exercise_name': exerciseName,
-          'target_sets': planExercise?['sets'],
-          'target_reps': planExercise?['reps'],
+          'target_rest_min': planExercise?['rest_min'],
+          'target_rest_max': planExercise?['rest_max'],
           'target_tempo': planExercise?['tempo'],
-          'target_rest': planExercise?['rest_seconds'],
         }..remove('plan_exercises')));
       }).toList();
 
@@ -583,6 +639,67 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, WorkoutSession?>> getActiveSession(
+      String clientId) async {
+    try {
+      // Find session where started_at is set but completed_at is null
+      final response = await _client
+          .from('workout_sessions')
+          .select('*, workout_plans(name)')
+          .eq('client_id', clientId)
+          .not('started_at', 'is', null)
+          .isFilter('completed_at', null)
+          .order('started_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) {
+        return right(null);
+      }
+
+      final planName = response['workout_plans']?['name'] as String?;
+
+      // Get exercise logs with plan exercise details
+      final logsResponse = await _client
+          .from('exercise_logs')
+          .select(
+              '*, plan_exercises(tempo, rest_min, rest_max, exercises(name))')
+          .eq('session_id', response['id'])
+          .order('created_at', ascending: true);
+
+      final logs = (logsResponse as List).map((log) {
+        final logData = log as Map<String, dynamic>;
+        final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
+        final exerciseName = planExercise?['exercises']?['name'] as String?;
+
+        return ExerciseLog.fromJson(_snakeToCamel({
+          ...logData,
+          'exercise_name': exerciseName,
+          'target_rest_min': planExercise?['rest_min'],
+          'target_rest_max': planExercise?['rest_max'],
+          'target_tempo': planExercise?['tempo'],
+        }..remove('plan_exercises')));
+      }).toList();
+
+      final sessionJson = _snakeToCamel({
+        ...response,
+        'plan_name': planName,
+      }..remove('workout_plans'));
+
+      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+        exerciseLogs: logs,
+        startedAt: sessionJson['startedAt'] != null
+            ? DateTime.tryParse(sessionJson['startedAt'].toString())
+            : null,
+      );
+
+      return right(session);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to get active session: $e'));
+    }
+  }
+
   // ===== Exercise Logs =====
 
   @override
@@ -614,7 +731,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     try {
       final response = await _client
           .from('exercise_logs')
-          .select('*, plan_exercises(sets, reps, tempo, rest_seconds, exercises(name))')
+          .select('*, plan_exercises(tempo, rest_min, rest_max, exercises(name))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
@@ -626,10 +743,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         return ExerciseLog.fromJson(_snakeToCamel({
           ...logData,
           'exercise_name': exerciseName,
-          'target_sets': planExercise?['sets'],
-          'target_reps': planExercise?['reps'],
           'target_tempo': planExercise?['tempo'],
-          'target_rest': planExercise?['rest_seconds'],
+          'target_rest_min': planExercise?['rest_min'],
+          'target_rest_max': planExercise?['rest_max'],
         }..remove('plan_exercises')));
       }).toList();
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/error/failures.dart';
 import '../../../exercise/domain/entities/exercise.dart';
 import '../../../exercise/presentation/providers/exercise_provider.dart';
+import '../../domain/entities/plan_exercise_set.dart';
 import '../../domain/entities/workout_plan.dart';
 import '../providers/workout_provider.dart';
 
@@ -372,17 +373,25 @@ class _ExerciseListItem extends StatelessWidget {
   Widget? _buildSubtitle() {
     final parts = <String>[];
 
-    if (exercise.sets != null) {
-      parts.add('${exercise.sets} sets');
-    }
-    if (exercise.reps != null) {
-      parts.add('${exercise.reps} reps');
+    if (exercise.sets.isNotEmpty) {
+      parts.add('${exercise.sets.length} sets');
+      // Show reps from first set
+      final firstSet = exercise.sets.first;
+      if (firstSet.repsMax != null && firstSet.repsMax != firstSet.reps) {
+        parts.add('${firstSet.reps}-${firstSet.repsMax} reps');
+      } else {
+        parts.add('${firstSet.reps} reps');
+      }
     }
     if (exercise.tempo != null) {
       parts.add('tempo: ${exercise.tempo}');
     }
-    if (exercise.restSeconds != null) {
-      parts.add('rest: ${exercise.restSeconds}s');
+    if (exercise.restMin != null) {
+      if (exercise.restMax != null && exercise.restMax != exercise.restMin) {
+        parts.add('rest: ${exercise.restMin}-${exercise.restMax}s');
+      } else {
+        parts.add('rest: ${exercise.restMin}s');
+      }
     }
 
     if (parts.isEmpty) return null;
@@ -448,84 +457,253 @@ class _ExerciseEditDialog extends StatefulWidget {
 }
 
 class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
-  late final TextEditingController _setsController;
-  late final TextEditingController _repsController;
   late final TextEditingController _tempoController;
-  late final TextEditingController _restController;
+  late final TextEditingController _restMinController;
+  late final TextEditingController _restMaxController;
   late final TextEditingController _notesController;
+  late List<_SetEditRow> _setRows;
 
   @override
   void initState() {
     super.initState();
-    _setsController =
-        TextEditingController(text: widget.exercise.sets?.toString() ?? '');
-    _repsController = TextEditingController(text: widget.exercise.reps ?? '');
     _tempoController = TextEditingController(text: widget.exercise.tempo ?? '');
-    _restController =
-        TextEditingController(text: widget.exercise.restSeconds ?? '');
+    _restMinController =
+        TextEditingController(text: widget.exercise.restMin?.toString() ?? '');
+    _restMaxController =
+        TextEditingController(text: widget.exercise.restMax?.toString() ?? '');
     _notesController = TextEditingController(text: widget.exercise.notes ?? '');
+
+    // Initialize set rows from existing sets or create one default row
+    if (widget.exercise.sets.isEmpty) {
+      _setRows = [_SetEditRow(setNumber: 1, reps: 10)];
+    } else {
+      _setRows = widget.exercise.sets.map((s) => _SetEditRow(
+            setNumber: s.setNumber,
+            reps: s.reps,
+            repsMax: s.repsMax,
+            weight: s.weight,
+          )).toList();
+    }
   }
 
   @override
   void dispose() {
-    _setsController.dispose();
-    _repsController.dispose();
     _tempoController.dispose();
-    _restController.dispose();
+    _restMinController.dispose();
+    _restMaxController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _addSet() {
+    setState(() {
+      final lastSet = _setRows.isNotEmpty ? _setRows.last : null;
+      _setRows.add(_SetEditRow(
+        setNumber: _setRows.length + 1,
+        reps: lastSet?.reps ?? 10,
+        repsMax: lastSet?.repsMax,
+        weight: lastSet?.weight,
+      ));
+    });
+  }
+
+  void _repeatSet(int index, int count) {
+    setState(() {
+      final sourceSet = _setRows[index];
+      for (var i = 0; i < count; i++) {
+        _setRows.add(_SetEditRow(
+          setNumber: _setRows.length + 1,
+          reps: sourceSet.reps,
+          repsMax: sourceSet.repsMax,
+          weight: sourceSet.weight,
+        ));
+      }
+    });
+  }
+
+  void _deleteSet(int index) {
+    if (_setRows.length <= 1) return;
+    setState(() {
+      _setRows.removeAt(index);
+      // Renumber sets
+      for (var i = 0; i < _setRows.length; i++) {
+        _setRows[i] = _setRows[i].copyWith(setNumber: i + 1);
+      }
+    });
+  }
+
+  void _showRepeatDialog(int index) {
+    showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Repeat Set'),
+        content: const Text('How many times?'),
+        actions: [
+          for (var i = 1; i <= 5; i++)
+            TextButton(
+              onPressed: () => Navigator.pop(context, i),
+              child: Text('$i'),
+            ),
+        ],
+      ),
+    ).then((count) {
+      if (count != null) {
+        _repeatSet(index, count);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.exercise.exerciseName ?? 'Edit Exercise'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _setsController,
-              decoration: const InputDecoration(
-                labelText: 'Sets',
-                hintText: 'e.g., 3',
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Rest period row
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _restMinController,
+                      decoration: const InputDecoration(
+                        labelText: 'Rest Min (s)',
+                        hintText: '60',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _restMaxController,
+                      decoration: const InputDecoration(
+                        labelText: 'Rest Max (s)',
+                        hintText: '90',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _repsController,
-              decoration: const InputDecoration(
-                labelText: 'Reps',
-                hintText: 'e.g., 8-10',
+              const SizedBox(height: 16),
+              TextField(
+                controller: _tempoController,
+                decoration: const InputDecoration(
+                  labelText: 'Tempo',
+                  hintText: 'e.g., 3111',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _tempoController,
-              decoration: const InputDecoration(
-                labelText: 'Tempo',
-                hintText: 'e.g., 3111',
+              const SizedBox(height: 24),
+              // Sets section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Sets', style: Theme.of(context).textTheme.titleMedium),
+                  TextButton.icon(
+                    onPressed: _addSet,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Set'),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _restController,
-              decoration: const InputDecoration(
-                labelText: 'Rest (seconds)',
-                hintText: 'e.g., 90-120',
+              const SizedBox(height: 8),
+              // Set list
+              ...List.generate(_setRows.length, (index) {
+                final setRow = _setRows[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text('${setRow.setNumber}.',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Reps',
+                            isDense: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          controller: TextEditingController(
+                            text: setRow.reps.toString(),
+                          ),
+                          onChanged: (v) {
+                            _setRows[index] = _setRows[index].copyWith(
+                              reps: int.tryParse(v) ?? setRow.reps,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Max',
+                            isDense: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          controller: TextEditingController(
+                            text: setRow.repsMax?.toString() ?? '',
+                          ),
+                          onChanged: (v) {
+                            _setRows[index] = _setRows[index].copyWith(
+                              repsMax: int.tryParse(v),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Weight',
+                            isDense: true,
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          controller: TextEditingController(
+                            text: setRow.weight?.toString() ?? '',
+                          ),
+                          onChanged: (v) {
+                            _setRows[index] = _setRows[index].copyWith(
+                              weight: double.tryParse(v),
+                            );
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.repeat, size: 20),
+                        onPressed: () => _showRepeatDialog(index),
+                        tooltip: 'Repeat',
+                      ),
+                      if (_setRows.length > 1)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          onPressed: () => _deleteSet(index),
+                          tooltip: 'Delete',
+                        ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  hintText: 'Additional notes...',
+                ),
+                maxLines: 2,
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Additional notes...',
-              ),
-              maxLines: 2,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -535,13 +713,22 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
         ),
         FilledButton(
           onPressed: () {
+            // Convert set rows to PlanExerciseSet objects
+            final sets = _setRows.map((row) => PlanExerciseSet(
+                  id: '', // Will be assigned by database
+                  planExerciseId: widget.exercise.id,
+                  setNumber: row.setNumber,
+                  reps: row.reps,
+                  repsMax: row.repsMax,
+                  weight: row.weight,
+                )).toList();
+
             final updated = widget.exercise.copyWith(
-              sets: int.tryParse(_setsController.text),
-              reps: _repsController.text.isEmpty ? null : _repsController.text,
+              sets: sets,
               tempo:
                   _tempoController.text.isEmpty ? null : _tempoController.text,
-              restSeconds:
-                  _restController.text.isEmpty ? null : _restController.text,
+              restMin: int.tryParse(_restMinController.text),
+              restMax: int.tryParse(_restMaxController.text),
               notes:
                   _notesController.text.isEmpty ? null : _notesController.text,
             );
@@ -550,6 +737,35 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+}
+
+/// Helper class to manage set editing state
+class _SetEditRow {
+  _SetEditRow({
+    required this.setNumber,
+    required this.reps,
+    this.repsMax,
+    this.weight,
+  });
+
+  final int setNumber;
+  final int reps;
+  final int? repsMax;
+  final double? weight;
+
+  _SetEditRow copyWith({
+    int? setNumber,
+    int? reps,
+    int? repsMax,
+    double? weight,
+  }) {
+    return _SetEditRow(
+      setNumber: setNumber ?? this.setNumber,
+      reps: reps ?? this.reps,
+      repsMax: repsMax ?? this.repsMax,
+      weight: weight ?? this.weight,
     );
   }
 }

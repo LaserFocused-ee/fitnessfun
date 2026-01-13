@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'plan_exercise_set.dart';
+
 part 'workout_plan.freezed.dart';
 part 'workout_plan.g.dart';
 
@@ -34,12 +36,12 @@ class PlanExercise with _$PlanExercise {
     required String exerciseId,
     String? exerciseName, // Denormalized for display
     String? exerciseVideoUrl, // Denormalized for video playback
-    int? sets,
-    String? reps, // "8-10" format for ranges
     String? tempo, // "3111" notation
-    String? restSeconds, // "90-120" format for ranges
+    int? restMin, // Rest period minimum in seconds
+    int? restMax, // Rest period maximum in seconds (for ranges)
     String? notes,
     required int orderIndex,
+    @Default([]) List<PlanExerciseSet> sets, // Per-set configuration
   }) = _PlanExercise;
 
   factory PlanExercise.fromJson(Map<String, dynamic> json) =>

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:chewie/chewie.dart';
@@ -54,31 +53,18 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     }
   }
 
-  void _startRest(String? restString) {
-    // Parse rest string like "90" or "90-120"
-    final parsed = _parseRestRange(restString);
-    ref.read(globalRestTimerProvider.notifier).startRest(parsed.$1, parsed.$2);
+  void _startRest(int? restMin, int? restMax, DateTime completedAt) {
+    final minSeconds = restMin ?? 60;
+    final maxSeconds = restMax ?? minSeconds + 30;
+    ref.read(restTimerContextProvider.notifier).startRest(
+      minSeconds: minSeconds,
+      maxSeconds: maxSeconds,
+      completedAt: completedAt,
+    );
   }
 
   void _stopRest() {
-    ref.read(globalRestTimerProvider.notifier).stopRest();
-  }
-
-  (int, int) _parseRestRange(String? restString) {
-    if (restString == null || restString.isEmpty) {
-      return (60, 90); // Default rest
-    }
-
-    // Handle range format "90-120" or single value "90"
-    if (restString.contains('-')) {
-      final parts = restString.split('-');
-      final min = int.tryParse(parts[0].trim()) ?? 60;
-      final max = int.tryParse(parts[1].trim()) ?? 90;
-      return (min, max);
-    } else {
-      final value = int.tryParse(restString.trim()) ?? 60;
-      return (value, value + 30); // Add 30s buffer for single values
-    }
+    ref.read(restTimerContextProvider.notifier).stopRest();
   }
 
   void _showWorkoutCompleteDialog() {
@@ -266,23 +252,31 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     itemBuilder: (context, index) {
                       final log = session.exerciseLogs[index];
                       final videoUrl = exerciseVideos[log.planExerciseId];
+                      // Calculate remaining rest seconds
+                      final isResting = restTimer.state != GlobalRestState.working;
+                      final restSecondsRemaining = isResting
+                          ? (restTimer.maxSeconds - restTimer.elapsed.inSeconds).clamp(0, restTimer.maxSeconds)
+                          : null;
+
                       return _ExerciseLogCard(
                         log: log,
                         index: index,
                         videoUrl: videoUrl,
-                        isResting: restTimer.state != GlobalRestState.working,
+                        isResting: isResting,
+                        restSecondsRemaining: restSecondsRemaining,
+                        restTargetMax: isResting ? restTimer.maxSeconds : null,
                         onVideoTap: videoUrl != null
                             ? () => _showVideoModal(
                                 context, log.exerciseName ?? 'Exercise', videoUrl)
                             : null,
-                        onSetComplete: (updatedLog, isLastSet) async {
+                        onSetComplete: (updatedLog, isLastSet, completedAt) async {
                           await ref
                               .read(activeWorkoutNotifierProvider.notifier)
                               .updateExerciseLog(updatedLog);
 
                           // Start rest timer after completing a set
                           if (!isLastSet) {
-                            _startRest(log.targetRest);
+                            _startRest(log.targetRestMin, log.targetRestMax, completedAt);
                           } else {
                             // Exercise complete - check if all exercises are now done
                             final currentSession = ref.read(activeWorkoutNotifierProvider).valueOrNull;
@@ -293,7 +287,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                                 _showWorkoutCompleteDialog();
                               } else {
                                 // Start rest for next exercise
-                                _startRest(log.targetRest);
+                                _startRest(log.targetRestMin, log.targetRestMax, completedAt);
                               }
                             }
                           }
@@ -379,6 +373,8 @@ class _ExerciseLogCard extends StatefulWidget {
     required this.isResting,
     this.videoUrl,
     this.onVideoTap,
+    this.restSecondsRemaining,
+    this.restTargetMax,
   });
 
   final ExerciseLog log;
@@ -386,7 +382,9 @@ class _ExerciseLogCard extends StatefulWidget {
   final String? videoUrl;
   final VoidCallback? onVideoTap;
   final bool isResting;
-  final void Function(ExerciseLog updatedLog, bool isLastSet) onSetComplete;
+  final int? restSecondsRemaining; // Countdown seconds remaining
+  final int? restTargetMax; // Target max rest for display
+  final void Function(ExerciseLog updatedLog, bool isLastSet, DateTime completedAt) onSetComplete;
   final VoidCallback onStartSet;
   final Future<void> Function(ExerciseLog) onUpdate;
 
@@ -419,11 +417,13 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
   void _initControllers() {
     final currentIndex = _currentSetIndex;
     if (currentIndex < widget.log.setData.length) {
+      final setData = widget.log.setData[currentIndex];
+      // Use actual logged value if exists, otherwise use target value
       _repsController = TextEditingController(
-        text: widget.log.setData[currentIndex].reps ?? '',
+        text: setData.reps?.toString() ?? setData.targetReps?.toString() ?? '',
       );
       _weightController = TextEditingController(
-        text: widget.log.setData[currentIndex].weight ?? '',
+        text: setData.weight?.toString() ?? setData.targetWeight?.toString() ?? '',
       );
     } else {
       _repsController = TextEditingController();
@@ -441,9 +441,10 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     final newIndex = _currentSetIndex;
 
     if (oldIndex != newIndex && newIndex < widget.log.setData.length) {
-      // Moving to new set, update controllers
-      _repsController.text = widget.log.setData[newIndex].reps ?? '';
-      _weightController.text = widget.log.setData[newIndex].weight ?? '';
+      // Moving to new set, update controllers with target values
+      final setData = widget.log.setData[newIndex];
+      _repsController.text = setData.reps?.toString() ?? setData.targetReps?.toString() ?? '';
+      _weightController.text = setData.weight?.toString() ?? setData.targetWeight?.toString() ?? '';
     }
 
     if (_notesController.text != (widget.log.notes ?? '')) {
@@ -468,17 +469,119 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     super.dispose();
   }
 
-  void _onCompleteSet() {
+  /// Complete set with target values (happy path - no inputs needed)
+  void _onCompleteSetAsPlanned() {
     final currentIndex = _currentSetIndex;
     if (currentIndex >= widget.log.setData.length) return;
 
-    widget.onStartSet(); // Stop rest timer when interacting
+    widget.onStartSet(); // Stop rest timer
+
+    final completedAt = DateTime.now().toUtc();
+    final currentSet = widget.log.setData[currentIndex];
 
     final updatedSetData = List<SetLog>.from(widget.log.setData);
-    updatedSetData[currentIndex] = updatedSetData[currentIndex].copyWith(
-      reps: _repsController.text.isEmpty ? null : _repsController.text,
-      weight: _weightController.text.isEmpty ? null : _weightController.text,
+    updatedSetData[currentIndex] = currentSet.copyWith(
+      reps: currentSet.targetReps,
+      weight: currentSet.targetWeight,
       completed: true,
+      completedAt: completedAt,
+    );
+
+    final isLastSet = currentIndex == widget.log.setData.length - 1;
+    final allCompleted = updatedSetData.every((s) => s.completed);
+
+    final updatedLog = widget.log.copyWith(
+      setData: updatedSetData,
+      completed: allCompleted,
+    );
+
+    widget.onSetComplete(updatedLog, isLastSet, completedAt);
+  }
+
+  /// Show modal to edit reps/weight/notes before completing
+  void _showEditAndCompleteModal() {
+    final currentIndex = _currentSetIndex;
+    if (currentIndex >= widget.log.setData.length) return;
+
+    final currentSet = widget.log.setData[currentIndex];
+
+    // Pre-populate with target values
+    _repsController.text = currentSet.targetReps?.toString() ?? '';
+    _weightController.text = currentSet.targetWeight?.toString() ?? '';
+
+    showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Set ${currentIndex + 1} - Edit Values'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _repsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Reps',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _weightController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Weight (kg)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _notesController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Complete Set'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        _onCompleteSetWithEdits();
+      }
+    });
+  }
+
+  /// Complete set with edited values from modal
+  void _onCompleteSetWithEdits() {
+    final currentIndex = _currentSetIndex;
+    if (currentIndex >= widget.log.setData.length) return;
+
+    widget.onStartSet(); // Stop rest timer
+
+    final completedAt = DateTime.now().toUtc();
+    final currentSet = widget.log.setData[currentIndex];
+
+    final updatedSetData = List<SetLog>.from(widget.log.setData);
+    updatedSetData[currentIndex] = currentSet.copyWith(
+      reps: _repsController.text.isEmpty
+          ? currentSet.targetReps
+          : int.tryParse(_repsController.text),
+      weight: _weightController.text.isEmpty
+          ? currentSet.targetWeight
+          : double.tryParse(_weightController.text),
+      completed: true,
+      completedAt: completedAt,
     );
 
     final isLastSet = currentIndex == widget.log.setData.length - 1;
@@ -490,13 +593,11 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
-    // Clear inputs for next set
-    if (!isLastSet) {
-      _repsController.clear();
-      _weightController.clear();
-    }
+    // Clear for next set
+    _repsController.clear();
+    _weightController.clear();
 
-    widget.onSetComplete(updatedLog, isLastSet);
+    widget.onSetComplete(updatedLog, isLastSet, completedAt);
   }
 
   void _onNotesChanged() {
@@ -506,8 +607,30 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     widget.onUpdate(updatedLog);
   }
 
-  void _onInputFocus() {
-    widget.onStartSet(); // Stop rest timer when user starts typing
+  /// Build display string for current set target (e.g., "8-10 reps × 22kg")
+  String _buildCurrentSetTargetDisplay() {
+    final currentIndex = _currentSetIndex;
+    if (currentIndex >= widget.log.setData.length) return '';
+
+    final currentSet = widget.log.setData[currentIndex];
+    final parts = <String>[];
+
+    // Reps
+    if (currentSet.targetReps != null) {
+      if (currentSet.targetRepsMax != null &&
+          currentSet.targetRepsMax != currentSet.targetReps) {
+        parts.add('${currentSet.targetReps}-${currentSet.targetRepsMax} reps');
+      } else {
+        parts.add('${currentSet.targetReps} reps');
+      }
+    }
+
+    // Weight
+    if (currentSet.targetWeight != null) {
+      parts.add('${currentSet.targetWeight}kg');
+    }
+
+    return parts.join(' × ');
   }
 
   @override
@@ -691,8 +814,8 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                     SizedBox(
                       width: 70,
                       child: TextField(
-                        controller: TextEditingController(text: setLog.reps ?? ''),
-                        keyboardType: TextInputType.text,
+                        controller: TextEditingController(text: setLog.reps?.toString() ?? ''),
+                        keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: Colors.green.shade800),
                         decoration: InputDecoration(
@@ -711,7 +834,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        onChanged: (value) => _updateSetData(i, reps: value),
+                        onChanged: (value) => _updateSetData(i, reps: int.tryParse(value)),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -721,8 +844,8 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                     SizedBox(
                       width: 70,
                       child: TextField(
-                        controller: TextEditingController(text: setLog.weight ?? ''),
-                        keyboardType: TextInputType.text,
+                        controller: TextEditingController(text: setLog.weight?.toString() ?? ''),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: Colors.green.shade800),
                         decoration: InputDecoration(
@@ -741,7 +864,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        onChanged: (value) => _updateSetData(i, weight: value),
+                        onChanged: (value) => _updateSetData(i, weight: double.tryParse(value)),
                       ),
                     ),
                   ],
@@ -781,7 +904,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     );
   }
 
-  void _updateSetData(int setIndex, {String? reps, String? weight}) {
+  void _updateSetData(int setIndex, {int? reps, double? weight}) {
     final updatedSetData = List<SetLog>.from(widget.log.setData);
     updatedSetData[setIndex] = updatedSetData[setIndex].copyWith(
       reps: reps ?? updatedSetData[setIndex].reps,
@@ -859,9 +982,14 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (widget.log.targetReps != null)
+                if (widget.log.targetSets > 0)
                   _InfoChip(
-                    label: '${widget.log.targetReps} reps',
+                    label: '${widget.log.targetSets} sets',
+                    color: colorScheme.primaryContainer,
+                  ),
+                if (widget.log.targetRepsDisplay != null)
+                  _InfoChip(
+                    label: '${widget.log.targetRepsDisplay} reps',
                     color: colorScheme.secondaryContainer,
                   ),
                 if (widget.log.targetTempo != null)
@@ -869,9 +997,9 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                     label: 'Tempo: ${widget.log.targetTempo}',
                     color: colorScheme.tertiaryContainer,
                   ),
-                if (widget.log.targetRest != null)
+                if (widget.log.targetRestDisplay != null)
                   _InfoChip(
-                    label: 'Rest: ${widget.log.targetRest}s',
+                    label: 'Rest: ${widget.log.targetRestDisplay}',
                     color: colorScheme.surfaceContainerHighest,
                   ),
               ],
@@ -886,6 +1014,8 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                 children: completedSets.asMap().entries.map((entry) {
                   final i = entry.key;
                   final s = entry.value;
+                  final reps = s.reps ?? s.targetReps ?? '-';
+                  final weight = s.weight ?? s.targetWeight ?? '-';
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -893,7 +1023,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${i + 1}: ${s.reps ?? "-"}×${s.weight ?? "-"}',
+                      '${i + 1}: $reps×${weight}kg',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.green.shade800,
@@ -909,62 +1039,99 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
             Divider(height: 1, color: colorScheme.outlineVariant),
             const SizedBox(height: 16),
 
-            // Current set indicator
-            Text(
-              'Set ${currentSetIndex + 1} of $totalSets',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.primary,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Current set input row
+            // Current set indicator and target values
             Row(
               children: [
-                // Reps input
+                Text(
+                  'Set ${currentSetIndex + 1} of $totalSets',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Target values display
+                if (currentSetIndex < widget.log.setData.length) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _buildCurrentSetTargetDisplay(),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+                // Rest countdown timer
+                if (widget.isResting && widget.restSecondsRemaining != null) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: widget.restSecondsRemaining! <= 0
+                          ? Colors.green.shade600
+                          : Colors.orange.shade600,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          widget.restSecondsRemaining! <= 0
+                              ? Icons.play_arrow
+                              : Icons.timer_outlined,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.restSecondsRemaining! <= 0
+                              ? 'GO!'
+                              : '${widget.restSecondsRemaining}s',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Two action buttons
+            Row(
+              children: [
+                // Primary: Complete as planned
                 Expanded(
-                  child: TextField(
-                    controller: _repsController,
-                    keyboardType: TextInputType.text,
-                    textAlign: TextAlign.center,
-                    onTap: _onInputFocus,
-                    decoration: InputDecoration(
-                      labelText: 'Reps',
-                      hintText: widget.log.targetReps ?? '10',
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: _onCompleteSetAsPlanned,
+                    icon: const Icon(Icons.check, size: 20),
+                    label: const Text('Complete Set'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Weight input
+                // Secondary: Edit and complete
                 Expanded(
-                  child: TextField(
-                    controller: _weightController,
-                    keyboardType: TextInputType.text,
-                    textAlign: TextAlign.center,
-                    onTap: _onInputFocus,
-                    decoration: const InputDecoration(
-                      labelText: 'Weight',
-                      hintText: 'kg',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
+                  child: OutlinedButton.icon(
+                    onPressed: _showEditAndCompleteModal,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Complete button
-                FilledButton.icon(
-                  onPressed: _onCompleteSet,
-                  icon: const Icon(Icons.check, size: 20),
-                  label: const Text('Done'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
                   ),
                 ),
               ],
@@ -972,14 +1139,14 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
 
             const SizedBox(height: 12),
 
-            // Notes field
+            // Notes field (collapsed, expand on tap)
             TextField(
               controller: _notesController,
               maxLines: 1,
-              onTap: _onInputFocus,
               style: const TextStyle(fontSize: 14),
+              onChanged: (_) => _onNotesChanged(),
               decoration: InputDecoration(
-                hintText: 'Notes...',
+                hintText: 'Add notes...',
                 hintStyle: TextStyle(
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
@@ -990,7 +1157,6 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onChanged: (_) => _onNotesChanged(),
             ),
           ],
         ),

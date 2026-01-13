@@ -94,6 +94,10 @@ abstract class WorkoutRepository {
   /// Delete a workout session
   Future<Either<Failure, Unit>> deleteWorkoutSession(String sessionId);
 
+  /// Get active (in-progress) session for a client
+  /// Returns the most recent session where started_at is set but completed_at is null
+  Future<Either<Failure, WorkoutSession?>> getActiveSession(String clientId);
+
   // ===== Exercise Logs =====
 
   /// Save/update an exercise log within a session
