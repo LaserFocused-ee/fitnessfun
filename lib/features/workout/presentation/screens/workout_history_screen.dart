@@ -600,73 +600,100 @@ class _SetRow extends StatelessWidget {
     final weight = set.weight ?? set.targetWeight;
     final wasModified = (set.reps != null && set.reps != set.targetReps) ||
         (set.weight != null && set.weight != set.targetWeight);
+    final hasNotes = set.notes != null && set.notes!.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          // Set number with completion indicator
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: set.completed
-                  ? colorScheme.primaryContainer
-                  : colorScheme.surfaceContainerHighest,
-            ),
-            child: Center(
-              child: set.completed
-                  ? Icon(Icons.check, size: 16, color: colorScheme.onPrimaryContainer)
-                  : Text(
-                      '${set.setNumber}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Reps
-          if (reps != null)
-            _SetDataChip(
-              label: '$reps reps',
-              isModified: set.reps != null && set.reps != set.targetReps,
-              colorScheme: colorScheme,
-            ),
-          if (reps != null && weight != null) const SizedBox(width: 8),
-
-          // Weight
-          if (weight != null)
-            _SetDataChip(
-              label: '${weight}kg',
-              isModified: set.weight != null && set.weight != set.targetWeight,
-              colorScheme: colorScheme,
-            ),
-
-          const Spacer(),
-
-          // Modified indicator
-          if (wasModified)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: colorScheme.tertiaryContainer,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'modified',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: colorScheme.onTertiaryContainer,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              // Set number with completion indicator
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: set.completed
+                      ? colorScheme.primaryContainer
+                      : colorScheme.surfaceContainerHighest,
+                ),
+                child: Center(
+                  child: set.completed
+                      ? Icon(Icons.check, size: 16, color: colorScheme.onPrimaryContainer)
+                      : Text(
+                          '${set.setNumber}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                 ),
               ),
+              const SizedBox(width: 12),
+
+              // Reps
+              if (reps != null)
+                _SetDataChip(
+                  label: '$reps reps',
+                  isModified: set.reps != null && set.reps != set.targetReps,
+                  colorScheme: colorScheme,
+                ),
+              if (reps != null && weight != null) const SizedBox(width: 8),
+
+              // Weight
+              if (weight != null)
+                _SetDataChip(
+                  label: '${weight}kg',
+                  isModified: set.weight != null && set.weight != set.targetWeight,
+                  colorScheme: colorScheme,
+                ),
+
+              const Spacer(),
+
+              // Notes indicator
+              if (hasNotes)
+                Icon(
+                  Icons.sticky_note_2_outlined,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+              if (hasNotes) const SizedBox(width: 8),
+
+              // Modified indicator
+              if (wasModified)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'modified',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Notes row
+        if (hasNotes)
+          Padding(
+            padding: const EdgeInsets.only(left: 56, right: 16, bottom: 4),
+            child: Text(
+              set.notes!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

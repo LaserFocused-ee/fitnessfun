@@ -379,7 +379,8 @@ class _ExerciseLogCard extends StatefulWidget {
 class _ExerciseLogCardState extends State<_ExerciseLogCard> {
   late TextEditingController _repsController;
   late TextEditingController _weightController;
-  late TextEditingController _notesController;
+  late TextEditingController _notesController; // Exercise-level notes
+  late TextEditingController _setNotesController; // Per-set notes for edit modal
   bool _isExpanded = false;
 
   int get _currentSetIndex {
@@ -414,6 +415,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       _weightController = TextEditingController();
     }
     _notesController = TextEditingController(text: widget.log.notes ?? '');
+    _setNotesController = TextEditingController();
   }
 
   @override
@@ -450,6 +452,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     _repsController.dispose();
     _weightController.dispose();
     _notesController.dispose();
+    _setNotesController.dispose();
     super.dispose();
   }
 
@@ -492,6 +495,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     // Pre-populate with target values
     _repsController.text = currentSet.targetReps?.toString() ?? '';
     _weightController.text = currentSet.targetWeight?.toString() ?? '';
+    _setNotesController.text = currentSet.notes ?? '';
 
     showDialog<bool>(
       context: context,
@@ -519,10 +523,11 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _notesController,
+              controller: _setNotesController,
               maxLines: 2,
               decoration: const InputDecoration(
-                labelText: 'Notes',
+                labelText: 'Notes for this set',
+                hintText: 'e.g., felt easy, form issue, etc.',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -564,6 +569,7 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
       weight: _weightController.text.isEmpty
           ? currentSet.targetWeight
           : double.tryParse(_weightController.text),
+      notes: _setNotesController.text.isEmpty ? null : _setNotesController.text,
       completed: true,
       completedAt: completedAt,
     );
@@ -574,12 +580,12 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
     final updatedLog = widget.log.copyWith(
       setData: updatedSetData,
       completed: allCompleted,
-      notes: _notesController.text.isEmpty ? null : _notesController.text,
     );
 
     // Clear for next set
     _repsController.clear();
     _weightController.clear();
+    _setNotesController.clear();
 
     widget.onSetComplete(updatedLog, isLastSet, completedAt);
   }

@@ -95,6 +95,7 @@ class SetLog with _$SetLog {
     // Actual logged values
     int? reps,
     double? weight,
+    String? notes,
     @Default(false) bool completed,
     DateTime? completedAt,
   }) = _SetLog;

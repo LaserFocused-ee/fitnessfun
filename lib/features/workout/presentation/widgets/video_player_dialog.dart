@@ -4,14 +4,13 @@ import 'dart:math' as math;
 import 'package:chewie/chewie.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../shared/services/video_cache_service.dart';
 
 /// Video player dialog that handles portrait/landscape videos appropriately.
 /// Videos are muted by default to not interrupt music.
-/// Portrait videos use vertical space, landscape videos rotate to fill screen.
+/// Landscape videos are rotated 90° to fill screen while device stays portrait.
 class VideoPlayerDialog extends StatefulWidget {
   const VideoPlayerDialog({
     super.key,
@@ -34,6 +33,7 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
   bool _isInitializing = false;
   String? _error;
   bool _isMuted = true;
+  bool _isLandscapeVideo = false;
 
   @override
   void initState() {
@@ -82,12 +82,15 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
       // Start muted by default
       await _videoController!.setVolume(0);
 
+      // Check if landscape video
+      final aspectRatio = _videoController!.value.aspectRatio;
+      _isLandscapeVideo = aspectRatio > 1.2;
+
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
         autoPlay: true,
         looping: true,
-        showControls: true,
-        aspectRatio: _videoController!.value.aspectRatio,
+        showControls: !_isLandscapeVideo, // Hide chewie controls for rotated video
       );
 
       if (mounted) {
@@ -120,22 +123,28 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final screenSize = MediaQuery.of(context).size;
-    final deviceIsPortrait = screenSize.height > screenSize.width;
 
-    // Determine video orientation
-    final videoAspect = _videoController?.value.aspectRatio ?? 16 / 9;
-    final videoIsPortrait = videoAspect < 1;
-    final videoIsLandscape = videoAspect > 1.2; // Wide landscape videos
-
-    // For landscape videos on portrait device, use fullscreen rotated view
-    if (videoIsLandscape && deviceIsPortrait && _chewieController != null) {
-      return _buildFullscreenLandscape(context, colorScheme, screenSize);
+    // For landscape videos, use fullscreen rotated view
+    if (_isLandscapeVideo && _chewieController != null) {
+      return _buildRotatedLandscape(context, screenSize);
     }
 
-    // For portrait videos, use more vertical space
+    // For portrait/square videos, use standard dialog
+    return _buildStandardDialog(context, colorScheme, screenSize);
+  }
+
+  /// Standard dialog for portrait/square videos
+  Widget _buildStandardDialog(
+    BuildContext context,
+    ColorScheme colorScheme,
+    Size screenSize,
+  ) {
+    final theme = Theme.of(context);
+    final videoAspect = _videoController?.value.aspectRatio ?? 16 / 9;
+    final videoIsPortrait = videoAspect < 1;
+
     final maxWidth =
         videoIsPortrait ? screenSize.width * 0.95 : screenSize.width * 0.9;
     final maxHeight =
@@ -173,7 +182,6 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Mute/unmute button
                   if (_videoController != null && !_isInitializing)
                     IconButton(
                       icon: Icon(
@@ -205,13 +213,19 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
     );
   }
 
-  /// Fullscreen rotated view for landscape videos on portrait devices
-  Widget _buildFullscreenLandscape(
-    BuildContext context,
-    ColorScheme colorScheme,
-    Size screenSize,
-  ) {
-    final theme = Theme.of(context);
+  /// Fullscreen rotated view for landscape videos (device stays portrait)
+  Widget _buildRotatedLandscape(BuildContext context, Size screenSize) {
+    final videoAspect = _videoController!.value.aspectRatio;
+
+    // Calculate rotated video size to fill screen optimally
+    // After 90° rotation: video width becomes height, video height becomes width
+    // Maximize to fill screen - ok to overlap bottom banner
+    final availableWidth = screenSize.width;
+
+    // Use full screen width as the video height (after rotation)
+    // This makes the rotated video as tall as the screen is wide
+    final finalVideoHeight = availableWidth;
+    final finalVideoWidth = finalVideoHeight * videoAspect;
 
     return Dialog(
       backgroundColor: Colors.black,
@@ -221,54 +235,92 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
         height: screenSize.height,
         child: Stack(
           children: [
-            // Rotated video taking full screen
+            // Rotated video centered
             Center(
               child: Transform.rotate(
-                angle: math.pi / 2, // 90 degrees clockwise
+                angle: math.pi / 2, // 90° clockwise
                 child: SizedBox(
-                  // Swap width/height for rotated video
-                  width: screenSize.height,
-                  height: screenSize.width,
-                  child: Chewie(controller: _chewieController!),
+                  width: finalVideoWidth,
+                  height: finalVideoHeight,
+                  child: VideoPlayer(_videoController!),
                 ),
               ),
             ),
-            // Overlay controls (rotated to match video)
+            // Top controls (close, title) - positioned at screen top
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: SafeArea(
-                child: Transform.rotate(
-                  angle: math.pi / 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            _isMuted ? Icons.volume_off : Icons.volume_up,
-                            color: Colors.white,
-                          ),
-                          onPressed: _toggleMute,
-                        ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.8),
+                        Colors.transparent,
                       ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isMuted ? Icons.volume_off : Icons.volume_up,
+                          color: Colors.white,
+                        ),
+                        onPressed: _toggleMute,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Play/pause button in center
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (_videoController!.value.isPlaying) {
+                      _videoController!.pause();
+                    } else {
+                      _videoController!.play();
+                    }
+                  });
+                },
+                child: AnimatedOpacity(
+                  opacity: _videoController!.value.isPlaying ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _videoController!.value.isPlaying
+                          ? Icons.pause
+                          : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 48,
                     ),
                   ),
                 ),
