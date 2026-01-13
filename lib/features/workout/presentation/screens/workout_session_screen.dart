@@ -492,10 +492,18 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
 
     final currentSet = widget.log.setData[currentIndex];
 
-    // Pre-populate with target values
-    _repsController.text = currentSet.targetReps?.toString() ?? '';
-    _weightController.text = currentSet.targetWeight?.toString() ?? '';
+    // Leave fields blank - only save what user fills in
+    _repsController.clear();
+    _weightController.clear();
     _setNotesController.text = currentSet.notes ?? '';
+
+    // Build hint text showing defaults
+    final repsHint = currentSet.targetReps != null
+        ? 'Default: ${currentSet.targetReps}'
+        : 'Enter reps';
+    final weightHint = currentSet.targetWeight != null
+        ? 'Default: ${currentSet.targetWeight}'
+        : 'Enter weight';
 
     showDialog<bool>(
       context: context,
@@ -507,18 +515,20 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
             TextField(
               controller: _repsController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Reps',
-                border: OutlineInputBorder(),
+                hintText: repsHint,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _weightController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Weight (kg)',
-                border: OutlineInputBorder(),
+                hintText: weightHint,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
