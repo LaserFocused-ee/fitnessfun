@@ -1,14 +1,17 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:chewie/chewie.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../shared/services/video_cache_service.dart';
 
 /// Video player dialog that handles portrait/landscape videos appropriately.
 /// Videos are muted by default to not interrupt music.
+/// Portrait videos use vertical space, landscape videos rotate to fill screen.
 class VideoPlayerDialog extends StatefulWidget {
   const VideoPlayerDialog({
     super.key,
@@ -120,22 +123,29 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final screenSize = MediaQuery.of(context).size;
+    final deviceIsPortrait = screenSize.height > screenSize.width;
 
-    // Determine if video is portrait mode
+    // Determine video orientation
     final videoAspect = _videoController?.value.aspectRatio ?? 16 / 9;
-    final isPortrait = videoAspect < 1;
+    final videoIsPortrait = videoAspect < 1;
+    final videoIsLandscape = videoAspect > 1.2; // Wide landscape videos
+
+    // For landscape videos on portrait device, use fullscreen rotated view
+    if (videoIsLandscape && deviceIsPortrait && _chewieController != null) {
+      return _buildFullscreenLandscape(context, colorScheme, screenSize);
+    }
 
     // For portrait videos, use more vertical space
     final maxWidth =
-        isPortrait ? screenSize.width * 0.95 : screenSize.width * 0.9;
+        videoIsPortrait ? screenSize.width * 0.95 : screenSize.width * 0.9;
     final maxHeight =
-        isPortrait ? screenSize.height * 0.9 : screenSize.height * 0.8;
+        videoIsPortrait ? screenSize.height * 0.9 : screenSize.height * 0.8;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isPortrait ? 8 : 16,
-        vertical: isPortrait ? 24 : 16,
+        horizontal: videoIsPortrait ? 8 : 16,
+        vertical: videoIsPortrait ? 24 : 16,
       ),
       child: Container(
         constraints: BoxConstraints(
@@ -187,6 +197,81 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
                   bottomRight: Radius.circular(16),
                 ),
                 child: _buildVideoContent(colorScheme),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Fullscreen rotated view for landscape videos on portrait devices
+  Widget _buildFullscreenLandscape(
+    BuildContext context,
+    ColorScheme colorScheme,
+    Size screenSize,
+  ) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: SizedBox(
+        width: screenSize.width,
+        height: screenSize.height,
+        child: Stack(
+          children: [
+            // Rotated video taking full screen
+            Center(
+              child: Transform.rotate(
+                angle: math.pi / 2, // 90 degrees clockwise
+                child: SizedBox(
+                  // Swap width/height for rotated video
+                  width: screenSize.height,
+                  height: screenSize.width,
+                  child: Chewie(controller: _chewieController!),
+                ),
+              ),
+            ),
+            // Overlay controls (rotated to match video)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Transform.rotate(
+                  angle: math.pi / 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isMuted ? Icons.volume_off : Icons.volume_up,
+                            color: Colors.white,
+                          ),
+                          onPressed: _toggleMute,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
