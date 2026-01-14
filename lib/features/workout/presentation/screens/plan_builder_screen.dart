@@ -59,6 +59,9 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
         planId: '',
         exerciseId: exercise.id,
         exerciseName: exercise.name,
+        exerciseVideoUrl: exercise.videoUrl,
+        exerciseTempo: exercise.tempo,
+        exerciseNotes: exercise.notes,
         orderIndex: currentExercises,
       ));
     }
@@ -457,7 +460,6 @@ class _ExerciseEditDialog extends StatefulWidget {
 }
 
 class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
-  late final TextEditingController _tempoController;
   late final TextEditingController _restMinController;
   late final TextEditingController _restMaxController;
   late final TextEditingController _notesController;
@@ -466,7 +468,6 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
   @override
   void initState() {
     super.initState();
-    _tempoController = TextEditingController(text: widget.exercise.tempo ?? '');
     _restMinController =
         TextEditingController(text: widget.exercise.restMin?.toString() ?? '');
     _restMaxController =
@@ -488,7 +489,6 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
 
   @override
   void dispose() {
-    _tempoController.dispose();
     _restMinController.dispose();
     _restMaxController.dispose();
     _notesController.dispose();
@@ -590,14 +590,37 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _tempoController,
-                decoration: const InputDecoration(
-                  labelText: 'Tempo',
-                  hintText: 'e.g., 3111',
+              // Show exercise tempo as read-only (tempo is now set on the exercise, not plan)
+              if (widget.exercise.exerciseTempo != null &&
+                  widget.exercise.exerciseTempo!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.tertiary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Tempo: ${widget.exercise.exerciseTempo}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 24),
               // Sets section
               Row(
@@ -694,11 +717,52 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
                 );
               }),
               const SizedBox(height: 16),
+              // Show exercise default notes if present
+              if (widget.exercise.exerciseNotes != null &&
+                  widget.exercise.exerciseNotes!.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Exercise Notes',
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.exercise.exerciseNotes!,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               TextField(
                 controller: _notesController,
                 decoration: const InputDecoration(
-                  labelText: 'Notes',
-                  hintText: 'Additional notes...',
+                  labelText: 'Additional Notes',
+                  hintText: 'Client-specific notes (e.g., "lower weight for shoulder")...',
                 ),
                 maxLines: 2,
               ),
@@ -725,8 +789,6 @@ class _ExerciseEditDialogState extends State<_ExerciseEditDialog> {
 
             final updated = widget.exercise.copyWith(
               sets: sets,
-              tempo:
-                  _tempoController.text.isEmpty ? null : _tempoController.text,
               restMin: int.tryParse(_restMinController.text),
               restMax: int.tryParse(_restMaxController.text),
               notes:

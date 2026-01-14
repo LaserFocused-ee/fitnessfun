@@ -14,6 +14,10 @@ class Exercise with _$Exercise {
     /// The full URL for video playback (generated from videoPath)
     String? videoUrl,
     String? muscleGroup,
+    /// Default tempo notation (e.g., "3111" = 3s eccentric, 1s pause, 1s concentric, 1s pause)
+    String? tempo,
+    /// Default exercise notes - form cues, technique tips (always shown to clients)
+    String? notes,
     String? createdBy,
     @Default(false) bool isGlobal,
     DateTime? createdAt,

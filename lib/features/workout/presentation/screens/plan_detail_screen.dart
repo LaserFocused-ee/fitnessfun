@@ -204,9 +204,11 @@ class PlanDetailScreen extends ConsumerWidget {
                                           color: colorScheme.secondaryContainer,
                                         ),
                                       ],
-                                      if (exercise.tempo != null)
+                                      // Show exercise tempo (prefer exerciseTempo, fall back to tempo for backward compatibility)
+                                      if (exercise.exerciseTempo != null ||
+                                          exercise.tempo != null)
                                         _InfoChip(
-                                          label: 'Tempo: ${exercise.tempo}',
+                                          label: 'Tempo: ${exercise.exerciseTempo ?? exercise.tempo}',
                                           color: colorScheme.tertiaryContainer,
                                         ),
                                       if (exercise.restMin != null)
@@ -216,8 +218,9 @@ class PlanDetailScreen extends ConsumerWidget {
                                         ),
                                     ],
                                   ),
-                                  if (exercise.notes != null &&
-                                      exercise.notes!.isNotEmpty) ...[
+                                  // Exercise notes (from the exercise itself)
+                                  if (exercise.exerciseNotes != null &&
+                                      exercise.exerciseNotes!.isNotEmpty) ...[
                                     const SizedBox(height: 12),
                                     Container(
                                       padding: const EdgeInsets.all(12),
@@ -230,9 +233,43 @@ class PlanDetailScreen extends ConsumerWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Icon(
-                                            Icons.note_outlined,
+                                            Icons.info_outline,
                                             size: 16,
                                             color: colorScheme.onSurfaceVariant,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              exercise.exerciseNotes!,
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color:
+                                                    colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  // Additional client-specific notes
+                                  if (exercise.notes != null &&
+                                      exercise.notes!.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.note_outlined,
+                                            size: 16,
+                                            color: colorScheme.primary,
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
@@ -240,8 +277,8 @@ class PlanDetailScreen extends ConsumerWidget {
                                               exercise.notes!,
                                               style: theme.textTheme.bodySmall
                                                   ?.copyWith(
-                                                color:
-                                                    colorScheme.onSurfaceVariant,
+                                                color: colorScheme.onSurface,
+                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
                                           ),

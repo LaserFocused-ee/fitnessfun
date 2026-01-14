@@ -75,16 +75,22 @@ class ExerciseDetailScreen extends ConsumerWidget {
                 ],
 
                 // Info section
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    if (exercise.muscleGroup != null) ...[
+                    if (exercise.muscleGroup != null)
                       Chip(
                         avatar: const Icon(Icons.fitness_center, size: 18),
                         label: Text(exercise.muscleGroup!),
                         backgroundColor: colorScheme.secondaryContainer,
                       ),
-                      const SizedBox(width: 8),
-                    ],
+                    if (exercise.tempo != null && exercise.tempo!.isNotEmpty)
+                      Chip(
+                        avatar: const Icon(Icons.speed, size: 18),
+                        label: Text('Tempo: ${exercise.tempo}'),
+                        backgroundColor: colorScheme.primaryContainer,
+                      ),
                     if (exercise.isGlobal)
                       Chip(
                         avatar: const Icon(Icons.public, size: 18),

@@ -31,10 +31,10 @@ mixin WorkoutSessionRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get the plan exercises with their sets
+      // Get the plan exercises with their sets and exercise details (including tempo and notes)
       final planExercises = await client
           .from('plan_exercises')
-          .select('*, exercises(name), plan_exercise_sets(*)')
+          .select('*, exercises(name, tempo, notes), plan_exercise_sets(*)')
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
@@ -54,7 +54,10 @@ mixin WorkoutSessionRepositoryMixin {
       final exerciseLogs = <ExerciseLog>[];
       for (final pe in planExercises as List) {
         final exerciseData = pe as Map<String, dynamic>;
-        final exerciseName = exerciseData['exercises']?['name'] as String?;
+        final exerciseInfo = exerciseData['exercises'] as Map<String, dynamic>?;
+        final exerciseName = exerciseInfo?['name'] as String?;
+        final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
+        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
 
         // Get the sets for this exercise
         final planSets = (exerciseData['plan_exercise_sets'] as List? ?? [])
@@ -84,12 +87,16 @@ mixin WorkoutSessionRepositoryMixin {
             .select()
             .single();
 
+        // Use exercise default tempo (prefer over plan_exercises.tempo for backward compatibility)
+        final targetTempo = exerciseTempoDefault ?? exerciseData['tempo'] as String?;
+
         exerciseLogs.add(ExerciseLog.fromJson(snakeToCamel({
           ...logResponse,
           'exercise_name': exerciseName,
+          'exercise_notes': exerciseNotesDefault,
           'target_rest_min': exerciseData['rest_min'],
           'target_rest_max': exerciseData['rest_max'],
-          'target_tempo': exerciseData['tempo'],
+          'target_tempo': targetTempo,
         })));
       }
 
@@ -136,24 +143,30 @@ mixin WorkoutSessionRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get exercise logs with plan exercise details
+      // Get exercise logs with plan exercise details and exercise defaults
       final logsResponse = await client
           .from('exercise_logs')
-          .select('*, plan_exercises(tempo, rest_min, rest_max, exercises(name))')
+          .select('*, plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
       final logs = (logsResponse as List).map((log) {
         final logData = log as Map<String, dynamic>;
         final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
-        final exerciseName = planExercise?['exercises']?['name'] as String?;
+        final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
+        final exerciseName = exerciseInfo?['name'] as String?;
+        final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
+        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+        // Prefer exercise tempo over plan_exercise tempo
+        final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
         return ExerciseLog.fromJson(snakeToCamel({
           ...logData,
           'exercise_name': exerciseName,
+          'exercise_notes': exerciseNotesDefault,
           'target_rest_min': planExercise?['rest_min'],
           'target_rest_max': planExercise?['rest_max'],
-          'target_tempo': planExercise?['tempo'],
+          'target_tempo': targetTempo,
         }..remove('plan_exercises')));
       }).toList();
 
@@ -188,7 +201,7 @@ mixin WorkoutSessionRepositoryMixin {
             workout_plans(name),
             exercise_logs(
               *,
-              plan_exercises(tempo, rest_min, rest_max, exercises(name))
+              plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))
             )
           ''')
           .eq('client_id', clientId)
@@ -205,12 +218,18 @@ mixin WorkoutSessionRepositoryMixin {
         final exerciseLogs = exerciseLogsJson.map((logData) {
           final log = logData as Map<String, dynamic>;
           final planExercise = log['plan_exercises'] as Map<String, dynamic>?;
-          final exerciseName = planExercise?['exercises']?['name'] as String?;
+          final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
+          final exerciseName = exerciseInfo?['name'] as String?;
+          final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
+          final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+          // Prefer exercise tempo over plan_exercise tempo
+          final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
           return snakeToCamel({
             ...log,
             'exercise_name': exerciseName,
-            'target_tempo': planExercise?['tempo'],
+            'exercise_notes': exerciseNotesDefault,
+            'target_tempo': targetTempo,
             'target_rest_min': planExercise?['rest_min'],
             'target_rest_max': planExercise?['rest_max'],
           }..remove('plan_exercises'));
@@ -287,25 +306,31 @@ mixin WorkoutSessionRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get exercise logs with plan exercise details
+      // Get exercise logs with plan exercise details and exercise defaults
       final logsResponse = await client
           .from('exercise_logs')
           .select(
-              '*, plan_exercises(tempo, rest_min, rest_max, exercises(name))')
+              '*, plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))')
           .eq('session_id', response['id'])
           .order('created_at', ascending: true);
 
       final logs = (logsResponse as List).map((log) {
         final logData = log as Map<String, dynamic>;
         final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
-        final exerciseName = planExercise?['exercises']?['name'] as String?;
+        final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
+        final exerciseName = exerciseInfo?['name'] as String?;
+        final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
+        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+        // Prefer exercise tempo over plan_exercise tempo
+        final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
         return ExerciseLog.fromJson(snakeToCamel({
           ...logData,
           'exercise_name': exerciseName,
+          'exercise_notes': exerciseNotesDefault,
           'target_rest_min': planExercise?['rest_min'],
           'target_rest_max': planExercise?['rest_max'],
-          'target_tempo': planExercise?['tempo'],
+          'target_tempo': targetTempo,
         }..remove('plan_exercises')));
       }).toList();
 

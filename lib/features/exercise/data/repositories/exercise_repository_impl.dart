@@ -82,6 +82,8 @@ class SupabaseExerciseRepository implements ExerciseRepository {
         'instructions': exercise.instructions,
         'video_path': exercise.videoPath,
         'muscle_group': exercise.muscleGroup,
+        'tempo': exercise.tempo,
+        'notes': exercise.notes,
         'created_by': userId,
         'is_global': false, // Trainer-created exercises are not global
       });
@@ -111,6 +113,8 @@ class SupabaseExerciseRepository implements ExerciseRepository {
         'instructions': exercise.instructions,
         'video_path': exercise.videoPath,
         'muscle_group': exercise.muscleGroup,
+        'tempo': exercise.tempo,
+        'notes': exercise.notes,
       });
 
       final response = await _client

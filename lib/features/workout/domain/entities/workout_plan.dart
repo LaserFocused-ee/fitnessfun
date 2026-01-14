@@ -36,10 +36,12 @@ class PlanExercise with _$PlanExercise {
     required String exerciseId,
     String? exerciseName, // Denormalized for display
     String? exerciseVideoUrl, // Denormalized for video playback
-    String? tempo, // "3111" notation
+    String? exerciseTempo, // Default tempo from exercise
+    String? exerciseNotes, // Default notes from exercise
+    String? tempo, // Override tempo for this plan (deprecated - will be removed)
     int? restMin, // Rest period minimum in seconds
     int? restMax, // Rest period maximum in seconds (for ranges)
-    String? notes,
+    String? notes, // Additional client-specific notes
     required int orderIndex,
     @Default([]) List<PlanExerciseSet> sets, // Per-set configuration
   }) = _PlanExercise;
@@ -51,6 +53,9 @@ class PlanExercise with _$PlanExercise {
     required String planId,
     required String exerciseId,
     String? exerciseName,
+    String? exerciseVideoUrl,
+    String? exerciseTempo,
+    String? exerciseNotes,
     required int orderIndex,
   }) =>
       PlanExercise(
@@ -58,6 +63,9 @@ class PlanExercise with _$PlanExercise {
         planId: planId,
         exerciseId: exerciseId,
         exerciseName: exerciseName,
+        exerciseVideoUrl: exerciseVideoUrl,
+        exerciseTempo: exerciseTempo,
+        exerciseNotes: exerciseNotes,
         orderIndex: orderIndex,
       );
 }

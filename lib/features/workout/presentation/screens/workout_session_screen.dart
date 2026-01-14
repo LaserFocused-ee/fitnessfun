@@ -1005,6 +1005,38 @@ class _ExerciseLogCardState extends State<_ExerciseLogCard> {
               ],
             ),
 
+            // Exercise notes (from the exercise itself)
+            if (widget.log.exerciseNotes != null &&
+                widget.log.exerciseNotes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.log.exerciseNotes!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Completed sets summary
             if (completedSets.isNotEmpty) ...[
               const SizedBox(height: 12),

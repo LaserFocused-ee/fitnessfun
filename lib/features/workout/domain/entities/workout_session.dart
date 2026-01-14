@@ -45,12 +45,13 @@ class ExerciseLog with _$ExerciseLog {
     required String sessionId,
     required String planExerciseId,
     String? exerciseName,
+    String? exerciseNotes, // Default notes from the exercise itself (always shown)
     int? targetRestMin,
     int? targetRestMax,
     String? targetTempo,
     @Default(false) bool completed,
     @Default([]) List<SetLog> setData,
-    String? notes,
+    String? notes, // Client-specific notes for this session
     DateTime? createdAt,
   }) = _ExerciseLog;
 
