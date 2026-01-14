@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import '../../domain/entities/trainer_video.dart';
 
 class VideoThumbnailCard extends StatelessWidget {
@@ -35,19 +37,23 @@ class VideoThumbnailCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Video thumbnail placeholder
+            // Video thumbnail
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(
-                    color: colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.video_library,
-                      size: 48,
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  // Video preview or placeholder
+                  if (video.videoUrl != null)
+                    _VideoThumbnailPreview(videoUrl: video.videoUrl!)
+                  else
+                    Container(
+                      color: colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.video_library,
+                        size: 48,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      ),
                     ),
-                  ),
                   // Play icon overlay
                   Center(
                     child: Container(
@@ -140,6 +146,99 @@ class VideoThumbnailCard extends StatelessWidget {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A widget that shows the first frame of a video as a thumbnail.
+/// Lazily initializes the video player and pauses after loading.
+class _VideoThumbnailPreview extends StatefulWidget {
+  const _VideoThumbnailPreview({required this.videoUrl});
+
+  final String videoUrl;
+
+  @override
+  State<_VideoThumbnailPreview> createState() => _VideoThumbnailPreviewState();
+}
+
+class _VideoThumbnailPreviewState extends State<_VideoThumbnailPreview> {
+  VideoPlayerController? _controller;
+  bool _isInitialized = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      await _controller!.initialize();
+
+      // Pause and seek to start to show first frame
+      await _controller!.setVolume(0);
+      await _controller!.pause();
+
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _hasError = true);
+      }
+      if (kDebugMode) {
+        print('Failed to load video thumbnail: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (_hasError) {
+      return Container(
+        color: colorScheme.surfaceContainerHighest,
+        child: Icon(
+          Icons.video_library,
+          size: 48,
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
+      );
+    }
+
+    if (!_isInitialized || _controller == null) {
+      return Container(
+        color: colorScheme.surfaceContainerHighest,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: _controller!.value.aspectRatio,
+          child: VideoPlayer(_controller!),
         ),
       ),
     );

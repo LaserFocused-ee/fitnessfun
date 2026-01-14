@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/trainer_video.dart';
 import '../providers/video_library_provider.dart';
@@ -210,8 +212,8 @@ class _VideoPickerDialogState extends ConsumerState<VideoPickerDialog> {
                   return GridView.builder(
                     padding: const EdgeInsets.all(16),
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 120,
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
                       childAspectRatio: 1,
@@ -314,6 +316,7 @@ class _VideoGridItem extends StatelessWidget {
       onTap: onTap,
       onDoubleTap: onDoubleTap,
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
@@ -325,12 +328,15 @@ class _VideoGridItem extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Video icon placeholder
-            Icon(
-              Icons.video_library,
-              size: 32,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
+            // Video thumbnail or placeholder
+            if (video.videoUrl != null)
+              _MiniVideoThumbnail(videoUrl: video.videoUrl!)
+            else
+              Icon(
+                Icons.video_library,
+                size: 32,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
             // Selection checkmark
             if (isSelected)
               Positioned(
@@ -370,6 +376,77 @@ class _VideoGridItem extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Mini video thumbnail for picker grid items
+class _MiniVideoThumbnail extends StatefulWidget {
+  const _MiniVideoThumbnail({required this.videoUrl});
+
+  final String videoUrl;
+
+  @override
+  State<_MiniVideoThumbnail> createState() => _MiniVideoThumbnailState();
+}
+
+class _MiniVideoThumbnailState extends State<_MiniVideoThumbnail> {
+  VideoPlayerController? _controller;
+  bool _isInitialized = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      await _controller!.initialize();
+      await _controller!.setVolume(0);
+      await _controller!.pause();
+
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _hasError = true);
+      }
+      if (kDebugMode) {
+        print('Failed to load video thumbnail: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (_hasError || !_isInitialized || _controller == null) {
+      return Icon(
+        Icons.video_library,
+        size: 32,
+        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+      );
+    }
+
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: _controller!.value.aspectRatio,
+          child: VideoPlayer(_controller!),
         ),
       ),
     );
