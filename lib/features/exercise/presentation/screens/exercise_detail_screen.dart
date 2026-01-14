@@ -24,12 +24,11 @@ class ExerciseDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: Text(exercise.name),
             actions: [
-              if (!exercise.isGlobal)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => context.push('/trainer/exercises/$exerciseId/edit'),
-                  tooltip: 'Edit',
-                ),
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => context.push('/trainer/exercises/$exerciseId/edit'),
+                tooltip: 'Edit',
+              ),
             ],
           ),
           body: SingleChildScrollView(

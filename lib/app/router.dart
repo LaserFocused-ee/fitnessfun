@@ -15,6 +15,7 @@ import '../features/exercise/presentation/screens/exercise_detail_screen.dart';
 import '../features/exercise/presentation/screens/exercise_form_screen.dart';
 import '../features/exercise/presentation/screens/exercise_library_screen.dart';
 import '../features/trainer/presentation/screens/trainer_home_screen.dart';
+import '../features/video_library/presentation/screens/video_library_screen.dart';
 import '../features/workout/presentation/screens/plan_builder_screen.dart';
 import '../features/workout/presentation/screens/plan_detail_screen.dart';
 import '../features/workout/presentation/screens/plan_list_screen.dart';
@@ -151,6 +152,10 @@ GoRouter router(RouterRef ref) {
         path: AppRoutes.trainerHome,
         builder: (context, state) => const TrainerHomeScreen(),
         routes: [
+          GoRoute(
+            path: 'videos',
+            builder: (context, state) => const VideoLibraryScreen(),
+          ),
           GoRoute(
             path: 'clients',
             builder: (context, state) => const ClientListScreen(),

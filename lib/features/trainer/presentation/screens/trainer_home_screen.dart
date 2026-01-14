@@ -77,6 +77,13 @@ class TrainerHomeScreen extends ConsumerWidget {
                       onTap: () => context.push('/trainer/exercises'),
                     ),
                     _DashboardCard(
+                      icon: Icons.video_library,
+                      title: 'Videos',
+                      subtitle: 'Video library',
+                      color: colorScheme.surfaceContainerHighest,
+                      onTap: () => context.push('/trainer/videos'),
+                    ),
+                    _DashboardCard(
                       icon: Icons.assignment,
                       title: 'Plans',
                       subtitle: 'Workout plans',

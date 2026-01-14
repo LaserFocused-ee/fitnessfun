@@ -80,7 +80,7 @@ class SupabaseExerciseRepository implements ExerciseRepository {
       final data = _camelToSnake({
         'name': exercise.name,
         'instructions': exercise.instructions,
-        'video_url': exercise.videoUrl,
+        'video_path': exercise.videoPath,
         'muscle_group': exercise.muscleGroup,
         'created_by': userId,
         'is_global': false, // Trainer-created exercises are not global
@@ -109,7 +109,7 @@ class SupabaseExerciseRepository implements ExerciseRepository {
       final data = _camelToSnake({
         'name': exercise.name,
         'instructions': exercise.instructions,
-        'video_url': exercise.videoUrl,
+        'video_path': exercise.videoPath,
         'muscle_group': exercise.muscleGroup,
       });
 
@@ -199,15 +199,15 @@ class SupabaseExerciseRepository implements ExerciseRepository {
       return MapEntry(camelKey, value);
     });
 
-    // Convert video_path to full storage URL
+    // Convert video_path to full storage URL (keep videoPath for form editing)
     if (result['videoPath'] != null && result['videoPath'].toString().isNotEmpty) {
       final videoPath = result['videoPath'] as String;
-      // Generate signed URL for video playback
+      // Generate public URL for video playback
       result['videoUrl'] = _client.storage
           .from('exercise-videos')
           .getPublicUrl(videoPath);
+      // Keep videoPath for form editing
     }
-    result.remove('videoPath');
 
     return result;
   }

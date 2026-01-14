@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/error/failures.dart';
+import '../../../video_library/domain/entities/trainer_video.dart';
+import '../../../video_library/presentation/widgets/video_picker_dialog.dart';
 import '../../domain/entities/exercise.dart';
 import '../providers/exercise_provider.dart';
 
@@ -23,8 +25,9 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _instructionsController = TextEditingController();
-  final _videoUrlController = TextEditingController();
   String? _selectedMuscleGroup;
+  String? _selectedVideoPath;
+  String? _selectedVideoName;
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -32,7 +35,6 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
   void dispose() {
     _nameController.dispose();
     _instructionsController.dispose();
-    _videoUrlController.dispose();
     super.dispose();
   }
 
@@ -40,8 +42,8 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
     if (!_isInitialized) {
       _nameController.text = exercise.name;
       _instructionsController.text = exercise.instructions ?? '';
-      _videoUrlController.text = exercise.videoUrl ?? '';
       _selectedMuscleGroup = exercise.muscleGroup;
+      _selectedVideoPath = exercise.videoPath;
       _isInitialized = true;
     }
   }
@@ -58,11 +60,7 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
           ? null
           : _instructionsController.text.trim(),
     );
-    notifier.setVideoUrl(
-      _videoUrlController.text.trim().isEmpty
-          ? null
-          : _videoUrlController.text.trim(),
-    );
+    notifier.setVideoPath(_selectedVideoPath);
     notifier.setMuscleGroup(_selectedMuscleGroup);
 
     final result = await notifier.save();
@@ -161,7 +159,7 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
               ref.read(exerciseFormNotifierProvider.notifier).loadExercise(exercise);
             });
           }
-          return _buildForm(context, canDelete: !exercise.isGlobal);
+          return _buildForm(context, canDelete: true);
         },
         loading: () => Scaffold(
           appBar: AppBar(title: const Text('Edit Exercise')),
@@ -194,6 +192,110 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
       _isInitialized = true;
     }
     return _buildForm(context, canDelete: false);
+  }
+
+  Future<void> _openVideoPicker() async {
+    final selected = await showVideoPickerDialog(
+      context,
+      selectedVideoPath: _selectedVideoPath,
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedVideoPath = selected.storagePath;
+        _selectedVideoName = selected.name;
+      });
+    }
+  }
+
+  Widget _buildVideoSelector(BuildContext context, ColorScheme colorScheme) {
+    final hasVideo = _selectedVideoPath != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Demo Video',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _openVideoPicker,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: colorScheme.outline),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: hasVideo
+                        ? colorScheme.primaryContainer
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    hasVideo ? Icons.videocam : Icons.videocam_outlined,
+                    color: hasVideo
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasVideo
+                            ? (_selectedVideoName ?? 'Video selected')
+                            : 'No video selected',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: hasVideo
+                                  ? colorScheme.onSurface
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      Text(
+                        hasVideo
+                            ? 'Tap to change'
+                            : 'Tap to select or upload',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasVideo)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        _selectedVideoPath = null;
+                        _selectedVideoName = null;
+                      });
+                    },
+                    tooltip: 'Remove video',
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildForm(BuildContext context, {required bool canDelete}) {
@@ -274,35 +376,8 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
 
             const SizedBox(height: 16),
 
-            // Video URL field
-            TextFormField(
-              controller: _videoUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Video URL',
-                hintText: 'https://youtube.com/watch?v=...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.videocam_outlined),
-              ),
-              keyboardType: TextInputType.url,
-              validator: (value) {
-                if (value != null && value.isNotEmpty) {
-                  final uri = Uri.tryParse(value);
-                  if (uri == null || !uri.hasScheme) {
-                    return 'Please enter a valid URL';
-                  }
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'Tip: You can paste a YouTube or Vimeo link for the video demo.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-            ),
+            // Video selector
+            _buildVideoSelector(context, colorScheme),
 
             const SizedBox(height: 32),
 

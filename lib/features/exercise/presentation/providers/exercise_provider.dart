@@ -117,8 +117,8 @@ class ExerciseFormNotifier extends _$ExerciseFormNotifier {
     state = state.copyWith(instructions: instructions);
   }
 
-  void setVideoUrl(String? videoUrl) {
-    state = state.copyWith(videoUrl: videoUrl);
+  void setVideoPath(String? videoPath) {
+    state = state.copyWith(videoPath: videoPath);
   }
 
   void setMuscleGroup(String? muscleGroup) {

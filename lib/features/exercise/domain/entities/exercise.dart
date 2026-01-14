@@ -9,6 +9,9 @@ class Exercise with _$Exercise {
     required String id,
     required String name,
     String? instructions,
+    /// The storage path for the video (e.g., "trainer_id/uuid.mp4")
+    String? videoPath,
+    /// The full URL for video playback (generated from videoPath)
     String? videoUrl,
     String? muscleGroup,
     String? createdBy,

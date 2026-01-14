@@ -48,6 +48,9 @@ dependencies:
   # Environment
   flutter_dotenv: ^5.2.1
   flutter_cache_manager: ^3.4.1
+  image_picker: ^1.2.1
+  uuid: ^4.5.2
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
