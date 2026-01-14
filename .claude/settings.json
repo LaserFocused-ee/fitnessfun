@@ -1,0 +1,13 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "linear",
+    "github",
+    "chrome-devtools",
+    "render"
+  ],
+  "spinnerTipsEnabled": false,
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
+}
