@@ -14,6 +14,9 @@ dependencies:
   # Backend
   supabase_flutter: ^2.8.0
 
+  # Google OAuth
+  google_sign_in: ^6.2.1
+
   # State Management (Riverpod 3 with code gen)
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1

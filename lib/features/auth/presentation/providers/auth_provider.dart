@@ -118,4 +118,22 @@ class AuthNotifier extends _$AuthNotifier {
       },
     );
   }
+
+  /// Sign in with Google OAuth.
+  Future<bool> signInWithGoogle() async {
+    state = const AsyncLoading();
+
+    final result = await _repo.signInWithGoogle();
+
+    return result.fold(
+      (failure) {
+        state = AsyncError(failure, StackTrace.current);
+        return false;
+      },
+      (_) {
+        state = const AsyncData(null);
+        return true;
+      },
+    );
+  }
 }

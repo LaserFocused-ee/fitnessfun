@@ -45,5 +45,34 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- URL Schemes for OAuth callbacks -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- Supabase OAuth callback -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.fitnessfun.fitness-fun</string>
+			</array>
+		</dict>
+		<!-- Google Sign-In (replace YOUR_GOOGLE_CLIENT_ID with actual iOS client ID) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.YOUR_GOOGLE_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Required for Google Sign-In -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>googleoauth</string>
+		<string>googlechrome</string>
+		<string>googlechromes</string>
+	</array>
 </dict>
 </plist>

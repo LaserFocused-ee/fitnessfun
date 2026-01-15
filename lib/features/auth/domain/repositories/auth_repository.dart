@@ -29,6 +29,12 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Sign in with Google OAuth.
+  ///
+  /// If an account with the same email already exists (e.g., email/password),
+  /// the Google identity will be linked to the existing account.
+  Future<Either<Failure, User>> signInWithGoogle();
+
   /// Sign out the current user.
   Future<Either<Failure, Unit>> signOut();
 

@@ -1,4 +1,8 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:fpdart/fpdart.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/error/failures.dart';
@@ -17,7 +21,26 @@ class SupabaseAuthRepository implements AuthRepository {
   final SupabaseClient _client;
   late final Stream<User?> _authStateStream;
 
+  /// Google Sign-In instance for native OAuth on mobile.
+  /// Web client ID is used - Supabase handles the actual auth.
+  late final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
+
   GoTrueClient get _auth => _client.auth;
+
+  /// Get the redirect URL based on platform.
+  String get _redirectUrl {
+    if (kIsWeb) {
+      // For web, use the current origin or production URL
+      return 'https://fitness-fun.onrender.com/';
+    }
+    // For mobile, use the app's deep link scheme
+    if (Platform.isIOS) {
+      return 'com.fitnessfun.fitness-fun://';
+    }
+    return 'com.fitnessfun.fitness_fun://';
+  }
 
   @override
   Stream<User?> get authStateChanges => _authStateStream;
@@ -80,6 +103,88 @@ class SupabaseAuthRepository implements AuthRepository {
     } catch (e) {
       return left(Failure.unknown(error: e));
     }
+  }
+
+  @override
+  Future<Either<Failure, User>> signInWithGoogle() async {
+    try {
+      if (kIsWeb) {
+        // Web: Use browser-based OAuth flow
+        return _signInWithGoogleWeb();
+      } else {
+        // Mobile: Use native Google Sign-In for better UX
+        return _signInWithGoogleNative();
+      }
+    } on AuthException catch (e) {
+      return left(Failure.auth(message: e.message, code: e.code));
+    } catch (e) {
+      return left(Failure.unknown(error: e));
+    }
+  }
+
+  /// Web-based Google OAuth using browser redirect.
+  Future<Either<Failure, User>> _signInWithGoogleWeb() async {
+    final success = await _auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _redirectUrl,
+      authScreenLaunchMode: LaunchMode.platformDefault,
+    );
+
+    if (!success) {
+      return left(
+        const Failure.auth(message: 'Google sign-in was cancelled.'),
+      );
+    }
+
+    // Wait briefly for auth state to update after redirect
+    // The actual user will be available through authStateChanges stream
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final user = currentUser;
+    if (user == null) {
+      return left(
+        const Failure.auth(message: 'Google sign-in failed. Please try again.'),
+      );
+    }
+
+    return right(user);
+  }
+
+  /// Native Google Sign-In for mobile platforms (better UX).
+  Future<Either<Failure, User>> _signInWithGoogleNative() async {
+    // Trigger native Google Sign-In UI
+    final googleUser = await _googleSignIn.signIn();
+
+    if (googleUser == null) {
+      return left(
+        const Failure.auth(message: 'Google sign-in was cancelled.'),
+      );
+    }
+
+    // Get authentication tokens from Google
+    final googleAuth = await googleUser.authentication;
+
+    if (googleAuth.idToken == null) {
+      return left(
+        const Failure.auth(message: 'Failed to get Google credentials.'),
+      );
+    }
+
+    // Sign in to Supabase using Google ID token
+    // This handles both new users and account linking automatically
+    final response = await _auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: googleAuth.idToken!,
+      accessToken: googleAuth.accessToken,
+    );
+
+    if (response.user == null) {
+      return left(
+        const Failure.auth(message: 'Google sign-in failed. Please try again.'),
+      );
+    }
+
+    return right(response.user!);
   }
 
   @override
