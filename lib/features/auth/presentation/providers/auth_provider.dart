@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/error/failures.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -127,6 +128,12 @@ class AuthNotifier extends _$AuthNotifier {
 
     return result.fold(
       (failure) {
+        // For web redirect flow, don't show error - page is redirecting
+        final isRedirectPending = failure is AuthFailure &&
+            (failure as AuthFailure).code == 'redirect_pending';
+        if (isRedirectPending) {
+          return false;
+        }
         state = AsyncError(failure, StackTrace.current);
         return false;
       },

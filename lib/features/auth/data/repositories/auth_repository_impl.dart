@@ -22,9 +22,14 @@ class SupabaseAuthRepository implements AuthRepository {
   late final Stream<User?> _authStateStream;
 
   /// Google Sign-In instance for native OAuth on mobile.
-  /// Web client ID is used - Supabase handles the actual auth.
   late final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    // iOS requires the iOS client ID since we don't have GoogleService-Info.plist
+    clientId: !kIsWeb && Platform.isIOS
+        ? '829122064513-bsteklpibo43s4sejbi154ndobi9267c.apps.googleusercontent.com'
+        : null,
+    // Android needs serverClientId (Web client ID) to get ID token for Supabase
+    serverClientId: '829122064513-sj3im0g92ghlv58m8igljsnspbim075o.apps.googleusercontent.com',
   );
 
   GoTrueClient get _auth => _client.auth;
@@ -32,8 +37,8 @@ class SupabaseAuthRepository implements AuthRepository {
   /// Get the redirect URL based on platform.
   String get _redirectUrl {
     if (kIsWeb) {
-      // For web, use the current origin or production URL
-      return 'https://fitness-fun.onrender.com/';
+      // For web, use the current origin so it works for localhost and production
+      return '${Uri.base.origin}/';
     }
     // For mobile, use the app's deep link scheme
     if (Platform.isIOS) {
@@ -123,7 +128,12 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   /// Web-based Google OAuth using browser redirect.
+  /// For web, this initiates OAuth and the page redirects to Google.
+  /// When returning, the router handles the session from URL tokens.
   Future<Either<Failure, User>> _signInWithGoogleWeb() async {
+    // signInWithOAuth returns true if OAuth was initiated successfully.
+    // For redirect flow, the page will navigate away to Google.
+    // Session is established when returning via URL tokens.
     final success = await _auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: _redirectUrl,
@@ -136,18 +146,15 @@ class SupabaseAuthRepository implements AuthRepository {
       );
     }
 
-    // Wait briefly for auth state to update after redirect
-    // The actual user will be available through authStateChanges stream
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
+    // For popup mode, check if user is now logged in
     final user = currentUser;
-    if (user == null) {
-      return left(
-        const Failure.auth(message: 'Google sign-in failed. Please try again.'),
-      );
+    if (user != null) {
+      return right(user);
     }
 
-    return right(user);
+    // For redirect mode, the page will navigate away. Return a special
+    // failure that the UI will ignore (no error message shown).
+    return left(const Failure.auth(message: '', code: 'redirect_pending'));
   }
 
   /// Native Google Sign-In for mobile platforms (better UX).

@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../core/utils/oauth_callback_detector.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/role_selection_screen.dart';
@@ -53,6 +55,27 @@ GoRouter router(RouterRef ref) {
           return AppRoutes.trainerHome;
         }
         return AppRoutes.clientHome;
+      }
+
+      debugPrint('Router: wasOAuthCallback=${OAuthCallbackDetector.wasOAuthCallback}, '
+          'isAuthLoading=$isAuthLoading, isLoggedIn=$isLoggedIn, '
+          'hasError=${authState.hasError}, isSplash=$isSplash');
+
+      // If returning from OAuth callback, wait until auth resolves
+      if (OAuthCallbackDetector.wasOAuthCallback) {
+        if (isLoggedIn) {
+          // OAuth succeeded, clear the flag and proceed
+          debugPrint('Router: OAuth succeeded, clearing flag');
+          OAuthCallbackDetector.clear();
+        } else if (!isAuthLoading && authState.hasError) {
+          // OAuth failed, clear the flag
+          debugPrint('Router: OAuth failed, clearing flag');
+          OAuthCallbackDetector.clear();
+        } else {
+          // Still processing, stay on splash
+          debugPrint('Router: OAuth processing, staying on splash');
+          return isSplash ? null : AppRoutes.splash;
+        }
       }
 
       // Stay on splash while loading auth or profile

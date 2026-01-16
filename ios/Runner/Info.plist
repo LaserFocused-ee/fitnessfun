@@ -57,13 +57,13 @@
 				<string>com.fitnessfun.fitness-fun</string>
 			</array>
 		</dict>
-		<!-- Google Sign-In (replace YOUR_GOOGLE_CLIENT_ID with actual iOS client ID) -->
+		<!-- Google Sign-In -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.YOUR_GOOGLE_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.829122064513-bsteklpibo43s4sejbi154ndobi9267c</string>
 			</array>
 		</dict>
 	</array>

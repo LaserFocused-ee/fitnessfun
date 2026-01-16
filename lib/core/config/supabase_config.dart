@@ -17,6 +17,8 @@ SupabaseClient supabaseClient(SupabaseClientRef ref) {
 /// Initializes Supabase with the configured URL and key.
 ///
 /// Call this in main() before runApp().
+/// Note: supabase_flutter automatically detects and handles OAuth callbacks
+/// (PKCE code exchange) during initialization.
 Future<void> initializeSupabase() async {
   await Supabase.initialize(
     url: EnvConfig.supabaseUrl,
