@@ -45,6 +45,7 @@ abstract class AuthRepository {
   Future<Either<Failure, Profile>> updateProfile({
     String? fullName,
     String? avatarUrl,
+    UserRole? role,
   });
 
   /// Send password reset email.

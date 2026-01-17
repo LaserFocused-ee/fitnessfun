@@ -232,6 +232,7 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<Either<Failure, Profile>> updateProfile({
     String? fullName,
     String? avatarUrl,
+    UserRole? role,
   }) async {
     try {
       final userId = currentUser?.id;
@@ -242,6 +243,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final updates = <String, dynamic>{};
       if (fullName != null) updates['full_name'] = fullName;
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+      if (role != null) updates['role'] = role.name;
 
       if (updates.isEmpty) {
         return getCurrentProfile();

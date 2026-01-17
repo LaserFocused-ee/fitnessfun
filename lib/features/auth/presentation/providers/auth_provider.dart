@@ -143,4 +143,32 @@ class AuthNotifier extends _$AuthNotifier {
       },
     );
   }
+
+  /// Update the current user's profile (including role).
+  Future<bool> updateProfile({
+    String? fullName,
+    String? avatarUrl,
+    UserRole? role,
+  }) async {
+    state = const AsyncLoading();
+
+    final result = await _repo.updateProfile(
+      fullName: fullName,
+      avatarUrl: avatarUrl,
+      role: role,
+    );
+
+    return result.fold(
+      (failure) {
+        state = AsyncError(failure, StackTrace.current);
+        return false;
+      },
+      (_) {
+        // Invalidate the current profile to refetch it
+        ref.invalidate(currentProfileProvider);
+        state = const AsyncData(null);
+        return true;
+      },
+    );
+  }
 }

@@ -3,13 +3,57 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/error/failures.dart';
+import '../../domain/entities/profile.dart';
+import '../providers/auth_provider.dart';
 
 /// Role selection screen (shown after social login if role not set).
-class RoleSelectionScreen extends ConsumerWidget {
+class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
+  bool _isLoading = false;
+
+  Future<void> _selectRole(UserRole role) async {
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(authNotifierProvider.notifier).updateProfile(
+          role: role,
+        );
+
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    if (success) {
+      // Navigate to the appropriate home based on role
+      if (role == UserRole.trainer) {
+        context.go(AppRoutes.trainerHome);
+      } else {
+        context.go(AppRoutes.clientHome);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen for errors
+    ref.listen(authNotifierProvider, (previous, next) {
+      if (next.hasError && next.error is Failure) {
+        final failure = next.error! as Failure;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(failure.displayMessage),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -39,10 +83,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                 title: 'I am a Client',
                 description:
                     'Track your workouts, log daily check-ins, and follow your trainer\'s plans.',
-                onTap: () {
-                  // TODO: Update role in database
-                  context.go(AppRoutes.clientHome);
-                },
+                isLoading: _isLoading,
+                onTap: _isLoading ? null : () => _selectRole(UserRole.client),
               ),
               const SizedBox(height: 16),
 
@@ -52,10 +94,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                 title: 'I am a Trainer',
                 description:
                     'Create workout plans, manage clients, and track their progress.',
-                onTap: () {
-                  // TODO: Update role in database
-                  context.go(AppRoutes.trainerHome);
-                },
+                isLoading: _isLoading,
+                onTap: _isLoading ? null : () => _selectRole(UserRole.trainer),
               ),
             ],
           ),
@@ -70,13 +110,15 @@ class _RoleCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
-    required this.onTap,
+    this.onTap,
+    this.isLoading = false,
   });
 
   final IconData icon;
   final String title;
   final String description;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +161,13 @@ class _RoleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right),
             ],
           ),
         ),

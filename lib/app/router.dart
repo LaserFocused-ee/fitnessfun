@@ -48,6 +48,12 @@ GoRouter router(RouterRef ref) {
       final isSplash = state.matchedLocation == AppRoutes.splash;
       final isAuthRoute = state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.signup;
+      final isRoleSelection = state.matchedLocation == AppRoutes.roleSelection;
+
+      // Check if user needs to select their role (OAuth users without explicit role)
+      bool needsRoleSelection() {
+        return profile != null && profile.role == 'pending';
+      }
 
       // Helper to get home route based on role
       String getHomeRoute() {
@@ -90,6 +96,10 @@ GoRouter router(RouterRef ref) {
         }
         // Wait for profile to load before redirecting
         if (!isProfileLoading) {
+          // Check if user needs to select their role (OAuth users)
+          if (needsRoleSelection()) {
+            return AppRoutes.roleSelection;
+          }
           return getHomeRoute();
         }
         return null; // Stay on splash while profile loads
@@ -102,7 +112,16 @@ GoRouter router(RouterRef ref) {
 
       // If logged in and on auth route, redirect to appropriate home
       if (isLoggedIn && isAuthRoute && !isProfileLoading) {
+        // Check if user needs to select their role (OAuth users)
+        if (needsRoleSelection()) {
+          return AppRoutes.roleSelection;
+        }
         return getHomeRoute();
+      }
+
+      // If user needs role selection but is not on that page, redirect them
+      if (isLoggedIn && !isProfileLoading && needsRoleSelection() && !isRoleSelection) {
+        return AppRoutes.roleSelection;
       }
 
       return null;
