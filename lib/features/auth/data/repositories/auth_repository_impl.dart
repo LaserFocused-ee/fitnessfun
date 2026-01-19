@@ -210,20 +210,47 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<Either<Failure, Profile>> getCurrentProfile() async {
     try {
       final userId = currentUser?.id;
+      print('getCurrentProfile: userId=$userId');
       if (userId == null) {
         return left(const Failure.auth(message: 'Not logged in.'));
       }
 
-      final response = await _client
+      // Fetch profile data
+      print('getCurrentProfile: fetching profile...');
+      final profileResponse = await _client
           .from('profiles')
           .select()
           .eq('id', userId)
           .single();
+      print('getCurrentProfile: profileResponse=$profileResponse');
 
-      return right(Profile.fromJson(response));
+      // Fetch user's roles from user_roles table
+      print('getCurrentProfile: fetching user_roles...');
+      final rolesResponse = await _client
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId);
+      print('getCurrentProfile: rolesResponse=$rolesResponse');
+
+      // Extract role strings from the response
+      final roles = (rolesResponse as List)
+          .map((r) => r['role'] as String)
+          .toList();
+      print('getCurrentProfile: roles=$roles');
+
+      // Combine profile data with roles
+      final profileWithRoles = {
+        ...profileResponse,
+        'roles': roles,
+      };
+      print('getCurrentProfile: profileWithRoles=$profileWithRoles');
+
+      return right(Profile.fromJson(profileWithRoles));
     } on PostgrestException catch (e) {
+      print('getCurrentProfile: PostgrestException: ${e.message}');
       return left(Failure.server(message: e.message, code: e.code));
-    } catch (e) {
+    } catch (e, st) {
+      print('getCurrentProfile: Exception: $e\n$st');
       return left(Failure.unknown(error: e));
     }
   }
@@ -243,20 +270,30 @@ class SupabaseAuthRepository implements AuthRepository {
       final updates = <String, dynamic>{};
       if (fullName != null) updates['full_name'] = fullName;
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
-      if (role != null) updates['role'] = role.name;
+      if (role != null) {
+        updates['role'] = role.name;
+        updates['active_role'] = role.name;
+      }
 
       if (updates.isEmpty) {
         return getCurrentProfile();
       }
 
-      final response = await _client
+      // Update profile
+      await _client
           .from('profiles')
           .update(updates)
-          .eq('id', userId)
-          .select()
-          .single();
+          .eq('id', userId);
 
-      return right(Profile.fromJson(response));
+      // If role is being set, also add to user_roles table
+      if (role != null && role != UserRole.pending) {
+        await _client.from('user_roles').upsert({
+          'user_id': userId,
+          'role': role.name,
+        }, onConflict: 'user_id, role');
+      }
+
+      return getCurrentProfile();
     } on PostgrestException catch (e) {
       return left(Failure.server(message: e.message, code: e.code));
     } catch (e) {
@@ -274,6 +311,56 @@ class SupabaseAuthRepository implements AuthRepository {
       return right(unit);
     } on AuthException catch (e) {
       return left(Failure.auth(message: e.message, code: e.code));
+    } catch (e) {
+      return left(Failure.unknown(error: e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Profile>> updateActiveRole(UserRole role) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) {
+        return left(const Failure.auth(message: 'Not logged in.'));
+      }
+
+      // Update active_role in profiles table
+      await _client
+          .from('profiles')
+          .update({'active_role': role.name})
+          .eq('id', userId);
+
+      return getCurrentProfile();
+    } on PostgrestException catch (e) {
+      return left(Failure.server(message: e.message, code: e.code));
+    } catch (e) {
+      return left(Failure.unknown(error: e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Profile>> addRole(UserRole role) async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) {
+        return left(const Failure.auth(message: 'Not logged in.'));
+      }
+
+      // Insert new role into user_roles table (upsert to avoid duplicates)
+      await _client.from('user_roles').upsert({
+        'user_id': userId,
+        'role': role.name,
+      }, onConflict: 'user_id, role');
+
+      // Also update active_role to the new role
+      await _client
+          .from('profiles')
+          .update({'active_role': role.name})
+          .eq('id', userId);
+
+      return getCurrentProfile();
+    } on PostgrestException catch (e) {
+      return left(Failure.server(message: e.message, code: e.code));
     } catch (e) {
       return left(Failure.unknown(error: e));
     }

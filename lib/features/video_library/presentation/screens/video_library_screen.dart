@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -38,9 +41,16 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> {
 
     setState(() => _isUploading = true);
 
+    // Read bytes on web (File doesn't work on web platform)
+    Uint8List? bytes;
+    if (kIsWeb) {
+      bytes = await video.readAsBytes();
+    }
+
     final result = await ref.read(videoUploadNotifierProvider.notifier).upload(
           filePath: video.path,
           name: name,
+          bytes: bytes,
         );
 
     if (mounted) {

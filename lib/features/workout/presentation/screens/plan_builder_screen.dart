@@ -61,7 +61,7 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
         exerciseName: exercise.name,
         exerciseVideoUrl: exercise.videoUrl,
         exerciseTempo: exercise.tempo,
-        exerciseNotes: exercise.notes,
+        exerciseNotes: exercise.instructions,
         orderIndex: currentExercises,
       ));
     }

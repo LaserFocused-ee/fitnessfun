@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:fpdart/fpdart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/config/supabase_config.dart';
@@ -22,7 +24,7 @@ Future<List<TrainerVideo>> trainerVideos(TrainerVideosRef ref) async {
   final repo = ref.watch(videoLibraryRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
-  if (profile == null || profile.role != 'trainer') {
+  if (profile == null || profile.activeRole != 'trainer') {
     return [];
   }
 
@@ -43,7 +45,7 @@ Future<List<TrainerVideo>> filteredTrainerVideos(
   final repo = ref.watch(videoLibraryRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
-  if (profile == null || profile.role != 'trainer') {
+  if (profile == null || profile.activeRole != 'trainer') {
     return [];
   }
 
@@ -75,9 +77,11 @@ class VideoUploadNotifier extends _$VideoUploadNotifier {
 
   /// Upload a video file
   /// Returns the created TrainerVideo on success
+  /// [bytes] is required for web uploads
   Future<Either<Failure, TrainerVideo>> upload({
     required String filePath,
     required String name,
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   }) async {
     state = const AsyncLoading();
@@ -87,6 +91,7 @@ class VideoUploadNotifier extends _$VideoUploadNotifier {
     final result = await repo.uploadVideo(
       filePath: filePath,
       name: name,
+      bytes: bytes,
       onProgress: onProgress,
     );
 

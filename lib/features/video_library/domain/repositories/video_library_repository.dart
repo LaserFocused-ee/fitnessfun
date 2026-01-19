@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:fpdart/fpdart.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/trainer_video.dart';
@@ -13,12 +15,14 @@ abstract class VideoLibraryRepository {
   Future<Either<Failure, TrainerVideo>> getVideoById(String id);
 
   /// Upload a video file and create metadata record
-  /// [filePath] is the local file path to upload
+  /// [filePath] is the local file path (used for extension on web, full path on mobile)
   /// [name] is the display name for the video
+  /// [bytes] is required for web uploads (XFile.readAsBytes())
   /// [onProgress] optional callback for upload progress (0.0 to 1.0)
   Future<Either<Failure, TrainerVideo>> uploadVideo({
     required String filePath,
     required String name,
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   });
 

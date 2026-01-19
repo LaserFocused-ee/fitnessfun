@@ -129,10 +129,6 @@ class ExerciseFormNotifier extends _$ExerciseFormNotifier {
     state = state.copyWith(tempo: tempo);
   }
 
-  void setNotes(String? notes) {
-    state = state.copyWith(notes: notes);
-  }
-
   void loadExercise(Exercise exercise) {
     state = exercise;
   }

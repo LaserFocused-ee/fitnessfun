@@ -1,7 +1,8 @@
+import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import '../providers/exercise_provider.dart';
 
 class ExerciseDetailScreen extends ConsumerWidget {
@@ -41,11 +42,14 @@ class ExerciseDetailScreen extends ConsumerWidget {
                   Card(
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
-                      onTap: () async {
-                        final uri = Uri.tryParse(exercise.videoUrl!);
-                        if (uri != null && await canLaunchUrl(uri)) {
-                          await launchUrl(uri);
-                        }
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => _VideoPlayerDialog(
+                            videoUrl: exercise.videoUrl!,
+                            title: exercise.name,
+                          ),
+                        );
                       },
                       child: Container(
                         height: 200,
@@ -129,33 +133,6 @@ class ExerciseDetailScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // Video URL (if present)
-                if (exercise.videoUrl != null) ...[
-                  Text(
-                    'Video Link',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final uri = Uri.tryParse(exercise.videoUrl!);
-                      if (uri != null && await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
-                      }
-                    },
-                    child: Text(
-                      exercise.videoUrl!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.primary,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -186,6 +163,131 @@ class ExerciseDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VideoPlayerDialog extends StatefulWidget {
+  const _VideoPlayerDialog({
+    required this.videoUrl,
+    required this.title,
+  });
+
+  final String videoUrl;
+  final String title;
+
+  @override
+  State<_VideoPlayerDialog> createState() => _VideoPlayerDialogState();
+}
+
+class _VideoPlayerDialogState extends State<_VideoPlayerDialog> {
+  late VideoPlayerController _videoController;
+  ChewieController? _chewieController;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    _videoController = VideoPlayerController.networkUrl(
+      Uri.parse(widget.videoUrl),
+    );
+
+    try {
+      await _videoController.initialize();
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController,
+        autoPlay: true,
+        looping: false,
+        aspectRatio: _videoController.value.aspectRatio,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Text(
+              'Error: $errorMessage',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewieController?.dispose();
+    _videoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with title and close button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          // Video player
+          AspectRatio(
+            aspectRatio: _chewieController?.aspectRatio ?? 16 / 9,
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'Failed to load video: $_error',
+                            style: const TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : Chewie(controller: _chewieController!),
+          ),
+        ],
       ),
     );
   }

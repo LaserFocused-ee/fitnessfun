@@ -48,6 +48,12 @@ abstract class AuthRepository {
     UserRole? role,
   });
 
+  /// Update the user's active role (for role switching).
+  Future<Either<Failure, Profile>> updateActiveRole(UserRole role);
+
+  /// Add a new role to the user's available roles.
+  Future<Either<Failure, Profile>> addRole(UserRole role);
+
   /// Send password reset email.
   Future<Either<Failure, Unit>> resetPassword(String email);
 }

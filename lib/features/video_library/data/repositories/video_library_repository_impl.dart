@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart';
@@ -72,6 +73,7 @@ class SupabaseVideoLibraryRepository implements VideoLibraryRepository {
   Future<Either<Failure, TrainerVideo>> uploadVideo({
     required String filePath,
     required String name,
+    Uint8List? bytes,
     void Function(double progress)? onProgress,
   }) async {
     try {
@@ -95,10 +97,14 @@ class SupabaseVideoLibraryRepository implements VideoLibraryRepository {
 
       // Upload to Supabase Storage
       if (kIsWeb) {
-        // Web upload using XFile
-        await _client.storage.from(_bucketName).upload(
+        // Web upload using bytes (File doesn't work on web)
+        if (bytes == null) {
+          return left(const StorageFailure(
+              message: 'Bytes required for web upload'));
+        }
+        await _client.storage.from(_bucketName).uploadBinary(
               storagePath,
-              File(filePath),
+              bytes,
               fileOptions: const FileOptions(
                 cacheControl: '3600',
                 upsert: false,

@@ -29,15 +29,33 @@ Stream<User?> authState(AuthStateRef ref) {
 @riverpod
 Future<Profile?> currentProfile(CurrentProfileRef ref) async {
   final repo = ref.watch(authRepositoryProvider);
-  final user = ref.watch(authStateProvider).valueOrNull;
+  final authState = ref.watch(authStateProvider);
+  final user = authState.valueOrNull;
+
+  print('currentProfile: authState.isLoading=${authState.isLoading}, '
+      'hasError=${authState.hasError}, user=${user?.id}');
 
   if (user == null) return null;
 
   final result = await repo.getCurrentProfile();
   return result.fold(
-    (failure) => null,
-    (profile) => profile,
+    (failure) {
+      print('currentProfile: FAILED to fetch profile: $failure');
+      return null;
+    },
+    (profile) {
+      print('currentProfile: Got profile for ${profile.email}, '
+          'activeRole=${profile.activeRole}, roles=${profile.roles}');
+      return profile;
+    },
   );
+}
+
+/// Provides the current active role.
+@riverpod
+UserRole activeRole(ActiveRoleRef ref) {
+  final profile = ref.watch(currentProfileProvider).valueOrNull;
+  return UserRole.fromString(profile?.effectiveActiveRole ?? 'pending');
 }
 
 /// Notifier for handling auth actions (sign in, sign up, sign out).
@@ -157,6 +175,57 @@ class AuthNotifier extends _$AuthNotifier {
       avatarUrl: avatarUrl,
       role: role,
     );
+
+    return result.fold(
+      (failure) {
+        state = AsyncError(failure, StackTrace.current);
+        return false;
+      },
+      (_) {
+        // Invalidate the current profile to refetch it
+        ref.invalidate(currentProfileProvider);
+        state = const AsyncData(null);
+        return true;
+      },
+    );
+  }
+}
+
+/// Notifier for role switching and adding new roles.
+@riverpod
+class RoleSwitcher extends _$RoleSwitcher {
+  @override
+  FutureOr<void> build() {
+    // Initial state is void
+  }
+
+  AuthRepository get _repo => ref.read(authRepositoryProvider);
+
+  /// Switch to a different active role.
+  Future<bool> switchRole(UserRole newRole) async {
+    state = const AsyncLoading();
+
+    final result = await _repo.updateActiveRole(newRole);
+
+    return result.fold(
+      (failure) {
+        state = AsyncError(failure, StackTrace.current);
+        return false;
+      },
+      (_) {
+        // Invalidate the current profile to refetch it
+        ref.invalidate(currentProfileProvider);
+        state = const AsyncData(null);
+        return true;
+      },
+    );
+  }
+
+  /// Add a new role to the user's available roles.
+  Future<bool> addRole(UserRole newRole) async {
+    state = const AsyncLoading();
+
+    final result = await _repo.addRole(newRole);
 
     return result.fold(
       (failure) {

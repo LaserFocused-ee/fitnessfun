@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,9 +49,16 @@ class _VideoPickerDialogState extends ConsumerState<VideoPickerDialog> {
 
     setState(() => _isUploading = true);
 
+    // Read bytes on web (File doesn't work on web platform)
+    Uint8List? bytes;
+    if (kIsWeb) {
+      bytes = await video.readAsBytes();
+    }
+
     final result = await ref.read(videoUploadNotifierProvider.notifier).upload(
           filePath: video.path,
           name: name,
+          bytes: bytes,
         );
 
     if (mounted) {
@@ -312,70 +321,75 @@ class _VideoGridItem extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return GestureDetector(
-      onTap: onTap,
-      onDoubleTap: onDoubleTap,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.transparent,
-            width: 3,
-          ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video thumbnail or placeholder
-            if (video.videoUrl != null)
-              _MiniVideoThumbnail(videoUrl: video.videoUrl!)
-            else
-              Icon(
-                Icons.video_library,
-                size: 32,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-            // Selection checkmark
-            if (isSelected)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check,
-                    size: 14,
-                    color: colorScheme.onPrimary,
-                  ),
-                ),
-              ),
-            // Video name
-            Positioned(
-              left: 4,
-              right: 4,
-              bottom: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  video.name,
-                  style: theme.textTheme.labelSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ),
+    return Material(
+      color: colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onDoubleTap: onDoubleTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? colorScheme.primary : Colors.transparent,
+              width: 3,
             ),
-          ],
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Video thumbnail or placeholder (wrapped in IgnorePointer)
+              IgnorePointer(
+                child: video.videoUrl != null
+                    ? _MiniVideoThumbnail(videoUrl: video.videoUrl!)
+                    : Icon(
+                        Icons.video_library,
+                        size: 32,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      ),
+              ),
+              // Selection checkmark
+              if (isSelected)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      size: 14,
+                      color: colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+              // Video name
+              Positioned(
+                left: 4,
+                right: 4,
+                bottom: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    video.name,
+                    style: theme.textTheme.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

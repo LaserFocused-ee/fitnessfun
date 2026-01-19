@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/role_switch_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../workout/domain/entities/workout_session.dart';
 import '../../../workout/presentation/providers/workout_provider.dart';
@@ -25,6 +26,7 @@ class ClientHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My Fitness'),
         actions: [
+          const RoleSwitchButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',

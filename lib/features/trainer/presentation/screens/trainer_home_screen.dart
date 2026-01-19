@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../app/routes.dart';
+import '../../../../shared/widgets/role_switch_button.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class TrainerHomeScreen extends ConsumerWidget {
   const TrainerHomeScreen({super.key});
@@ -17,6 +18,7 @@ class TrainerHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Trainer Dashboard'),
         actions: [
+          const RoleSwitchButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',

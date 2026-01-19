@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String roleSelection = '/role-selection';
+  static const String addRole = '/add-role';
 
   // Client routes
   static const String clientHome = '/client';

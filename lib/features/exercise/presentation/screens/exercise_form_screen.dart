@@ -26,7 +26,6 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
   final _nameController = TextEditingController();
   final _instructionsController = TextEditingController();
   final _tempoController = TextEditingController();
-  final _notesController = TextEditingController();
   String? _selectedMuscleGroup;
   String? _selectedVideoPath;
   String? _selectedVideoName;
@@ -38,7 +37,6 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
     _nameController.dispose();
     _instructionsController.dispose();
     _tempoController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
@@ -47,7 +45,6 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
       _nameController.text = exercise.name;
       _instructionsController.text = exercise.instructions ?? '';
       _tempoController.text = exercise.tempo ?? '';
-      _notesController.text = exercise.notes ?? '';
       _selectedMuscleGroup = exercise.muscleGroup;
       _selectedVideoPath = exercise.videoPath;
       _isInitialized = true;
@@ -70,11 +67,6 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
       _tempoController.text.trim().isEmpty
           ? null
           : _tempoController.text.trim(),
-    );
-    notifier.setNotes(
-      _notesController.text.trim().isEmpty
-          ? null
-          : _notesController.text.trim(),
     );
     notifier.setVideoPath(_selectedVideoPath);
     notifier.setMuscleGroup(_selectedMuscleGroup);
@@ -396,27 +388,12 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
               controller: _instructionsController,
               decoration: const InputDecoration(
                 labelText: 'Instructions',
-                hintText: 'Step-by-step instructions for proper form...',
+                hintText: 'Form cues, technique tips, step-by-step instructions...',
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
+                helperText: 'These instructions are shown to clients',
               ),
               maxLines: 5,
-              textCapitalization: TextCapitalization.sentences,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Exercise Notes field
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Exercise Notes',
-                hintText: 'Form cues, technique tips, common mistakes...',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-                helperText: 'These notes are always shown to clients',
-              ),
-              maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
             ),
 

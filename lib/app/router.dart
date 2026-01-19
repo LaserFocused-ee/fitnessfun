@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../core/utils/oauth_callback_detector.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/auth/presentation/screens/add_role_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/signup_screen.dart';
@@ -30,17 +31,28 @@ part 'router.g.dart';
 /// Global navigator key for accessing navigator from anywhere.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Listenable that triggers router refresh when auth state changes.
+class RouterRefreshNotifier extends ChangeNotifier {
+  RouterRefreshNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(currentProfileProvider, (_, __) => notifyListeners());
+  }
+}
+
 /// Provides the GoRouter instance.
-@riverpod
-GoRouter router(RouterRef ref) {
-  final authState = ref.watch(authStateProvider);
-  final profileAsync = ref.watch(currentProfileProvider);
+@Riverpod(keepAlive: true)
+GoRouter router(Ref ref) {
+  final refreshNotifier = RouterRefreshNotifier(ref);
+  ref.onDispose(() => refreshNotifier.dispose());
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
+      final profileAsync = ref.read(currentProfileProvider);
       final isAuthLoading = authState.isLoading;
       final isProfileLoading = profileAsync.isLoading;
       final isLoggedIn = authState.valueOrNull != null;
@@ -52,12 +64,12 @@ GoRouter router(RouterRef ref) {
 
       // Check if user needs to select their role (OAuth users without explicit role)
       bool needsRoleSelection() {
-        return profile != null && profile.role == 'pending';
+        return profile != null && profile.effectiveActiveRole == 'pending';
       }
 
-      // Helper to get home route based on role
+      // Helper to get home route based on active role
       String getHomeRoute() {
-        if (profile?.role == 'trainer') {
+        if (profile?.effectiveActiveRole == 'trainer') {
           return AppRoutes.trainerHome;
         }
         return AppRoutes.clientHome;
@@ -145,6 +157,10 @@ GoRouter router(RouterRef ref) {
       GoRoute(
         path: AppRoutes.roleSelection,
         builder: (context, state) => const RoleSelectionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addRole,
+        builder: (context, state) => const AddRoleScreen(),
       ),
 
       // Client routes
