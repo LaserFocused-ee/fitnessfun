@@ -25,6 +25,7 @@ import '../features/workout/presentation/screens/plan_detail_screen.dart';
 import '../features/workout/presentation/screens/plan_list_screen.dart';
 import '../features/workout/presentation/screens/workout_history_screen.dart';
 import '../features/workout/presentation/screens/workout_session_screen.dart';
+import 'custom_page_transitions.dart';
 import 'home_screen.dart';
 import 'routes.dart';
 
@@ -167,39 +168,57 @@ GoRouter router(Ref ref) {
       // Client routes (root level)
       GoRoute(
         path: AppRoutes.checkin,
-        builder: (context, state) => const CheckinFormScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const CheckinFormScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'history',
-            builder: (context, state) => const CheckinHistoryScreen(),
+            pageBuilder: (context, state) => SlideTransitionPage(
+              key: state.pageKey,
+              child: const CheckinHistoryScreen(),
+            ),
           ),
         ],
       ),
       GoRoute(
         path: AppRoutes.workoutHistory,
-        builder: (context, state) => const WorkoutHistoryScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const WorkoutHistoryScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.myPlans,
-        builder: (context, state) => const ClientHomeScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const ClientHomeScreen(),
+        ),
         routes: [
           GoRoute(
             path: ':planId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final planId = state.pathParameters['planId']!;
-              return PlanDetailScreen(planId: planId, isClientView: true);
+              return SlideTransitionPage(
+                key: state.pageKey,
+                child: PlanDetailScreen(planId: planId, isClientView: true),
+              );
             },
             routes: [
               GoRoute(
                 path: 'workout',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final planId = state.pathParameters['planId']!;
                   final clientPlanId = state.uri.queryParameters['clientPlanId'];
                   final sessionId = state.uri.queryParameters['sessionId'];
-                  return WorkoutSessionScreen(
-                    planId: planId,
-                    clientPlanId: clientPlanId,
-                    sessionId: sessionId,
+                  return SlideTransitionPage(
+                    key: state.pageKey,
+                    child: WorkoutSessionScreen(
+                      planId: planId,
+                      clientPlanId: clientPlanId,
+                      sessionId: sessionId,
+                    ),
                   );
                 },
               ),
@@ -211,41 +230,62 @@ GoRouter router(Ref ref) {
       // Trainer routes (root level)
       GoRoute(
         path: AppRoutes.videos,
-        builder: (context, state) => const VideoLibraryScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const VideoLibraryScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.clients,
-        builder: (context, state) => const ClientListScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const ClientListScreen(),
+        ),
         routes: [
           GoRoute(
             path: ':clientId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final clientId = state.pathParameters['clientId']!;
-              return ClientDetailScreen(clientId: clientId);
+              return SlideTransitionPage(
+                key: state.pageKey,
+                child: ClientDetailScreen(clientId: clientId),
+              );
             },
           ),
         ],
       ),
       GoRoute(
         path: AppRoutes.exercises,
-        builder: (context, state) => const ExerciseLibraryScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const ExerciseLibraryScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'create',
-            builder: (context, state) => const ExerciseFormScreen(),
+            pageBuilder: (context, state) => SlideTransitionPage(
+              key: state.pageKey,
+              child: const ExerciseFormScreen(),
+            ),
           ),
           GoRoute(
             path: ':exerciseId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final exerciseId = state.pathParameters['exerciseId']!;
-              return ExerciseDetailScreen(exerciseId: exerciseId);
+              return SlideTransitionPage(
+                key: state.pageKey,
+                child: ExerciseDetailScreen(exerciseId: exerciseId),
+              );
             },
             routes: [
               GoRoute(
                 path: 'edit',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final exerciseId = state.pathParameters['exerciseId']!;
-                  return ExerciseFormScreen(exerciseId: exerciseId);
+                  return SlideTransitionPage(
+                    key: state.pageKey,
+                    child: ExerciseFormScreen(exerciseId: exerciseId),
+                  );
                 },
               ),
             ],
@@ -254,29 +294,41 @@ GoRouter router(Ref ref) {
       ),
       GoRoute(
         path: AppRoutes.plans,
-        builder: (context, state) => const PlanListScreen(),
+        pageBuilder: (context, state) => SlideTransitionPage(
+          key: state.pageKey,
+          child: const PlanListScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'create',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final clientId = state.uri.queryParameters['clientId']!;
-              return PlanBuilderScreen(clientId: clientId);
+              return SlideTransitionPage(
+                key: state.pageKey,
+                child: PlanBuilderScreen(clientId: clientId),
+              );
             },
           ),
           GoRoute(
             path: ':planId',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final planId = state.pathParameters['planId']!;
               final clientId = state.uri.queryParameters['clientId'];
-              return PlanDetailScreen(planId: planId, clientId: clientId);
+              return SlideTransitionPage(
+                key: state.pageKey,
+                child: PlanDetailScreen(planId: planId, clientId: clientId),
+              );
             },
             routes: [
               GoRoute(
                 path: 'edit',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final planId = state.pathParameters['planId']!;
                   final clientId = state.uri.queryParameters['clientId']!;
-                  return PlanBuilderScreen(planId: planId, clientId: clientId);
+                  return SlideTransitionPage(
+                    key: state.pageKey,
+                    child: PlanBuilderScreen(planId: planId, clientId: clientId),
+                  );
                 },
               ),
             ],

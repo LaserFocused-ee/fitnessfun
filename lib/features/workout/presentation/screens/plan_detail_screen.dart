@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../shared/services/video_cache_service.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../providers/workout_provider.dart';
 
 class PlanDetailScreen extends ConsumerWidget {
@@ -32,6 +34,9 @@ class PlanDetailScreen extends ConsumerWidget {
       data: (plan) {
         return Scaffold(
           appBar: AppBar(
+            leading: AppBackButton(
+              fallbackRoute: isClientView ? AppRoutes.myPlans : AppRoutes.home,
+            ),
             title: Text(plan.name),
             actions: [
               // Trainer-only actions
@@ -301,11 +306,21 @@ class PlanDetailScreen extends ConsumerWidget {
         );
       },
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Plan')),
+        appBar: AppBar(
+          leading: AppBackButton(
+            fallbackRoute: isClientView ? AppRoutes.myPlans : AppRoutes.home,
+          ),
+          title: const Text('Plan'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('Plan')),
+        appBar: AppBar(
+          leading: AppBackButton(
+            fallbackRoute: isClientView ? AppRoutes.myPlans : AppRoutes.home,
+          ),
+          title: const Text('Plan'),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

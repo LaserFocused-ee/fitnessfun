@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/routes.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../providers/workout_provider.dart';
 
 class PlanListScreen extends ConsumerWidget {
@@ -14,6 +16,7 @@ class PlanListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.home),
         title: const Text('Workout Plans'),
         actions: [
           IconButton(

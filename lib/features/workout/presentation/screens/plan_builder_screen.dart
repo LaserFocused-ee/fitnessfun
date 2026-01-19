@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../../clients/presentation/providers/client_detail_provider.dart';
 import '../../../exercise/domain/entities/exercise.dart';
 import '../../../exercise/presentation/providers/exercise_provider.dart';
@@ -184,11 +186,17 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
           return _buildForm(context, plan);
         },
         loading: () => Scaffold(
-          appBar: AppBar(title: const Text('Edit Plan')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.home),
+            title: const Text('Edit Plan'),
+          ),
           body: const Center(child: CircularProgressIndicator()),
         ),
         error: (error, _) => Scaffold(
-          appBar: AppBar(title: const Text('Edit Plan')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.home),
+            title: const Text('Edit Plan'),
+          ),
           body: Center(child: Text('Error: $error')),
         ),
       );
@@ -211,6 +219,7 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.home),
         title: Text(widget.isEditing ? 'Edit Plan' : 'Create Plan'),
       ),
       body: Form(

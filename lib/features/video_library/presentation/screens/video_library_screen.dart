@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../../workout/presentation/widgets/video_player_dialog.dart';
 import '../providers/video_library_provider.dart';
 import '../widgets/video_thumbnail_card.dart';
@@ -198,6 +200,7 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.home),
         title: const Text('Video Library'),
       ),
       body: Column(

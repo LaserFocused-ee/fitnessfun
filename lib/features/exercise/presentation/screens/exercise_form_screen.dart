@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../../video_library/domain/entities/trainer_video.dart';
 import '../../../video_library/presentation/widgets/video_picker_dialog.dart';
 import '../../domain/entities/exercise.dart';
@@ -170,11 +172,17 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
           return _buildForm(context, canDelete: true);
         },
         loading: () => Scaffold(
-          appBar: AppBar(title: const Text('Edit Exercise')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.exercises),
+            title: const Text('Edit Exercise'),
+          ),
           body: const Center(child: CircularProgressIndicator()),
         ),
         error: (error, _) => Scaffold(
-          appBar: AppBar(title: const Text('Edit Exercise')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.exercises),
+            title: const Text('Edit Exercise'),
+          ),
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -311,6 +319,7 @@ class _ExerciseFormScreenState extends ConsumerState<ExerciseFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.exercises),
         title: Text(widget.isEditing ? 'Edit Exercise' : 'Create Exercise'),
         actions: [
           if (widget.isEditing && canDelete)

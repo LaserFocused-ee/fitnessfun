@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/routes.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../providers/checkin_provider.dart';
 
 /// Screen showing check-in history.
@@ -13,6 +15,7 @@ class CheckinHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.checkin),
         title: const Text('Check-in History'),
       ),
       body: checkinsAsync.when(

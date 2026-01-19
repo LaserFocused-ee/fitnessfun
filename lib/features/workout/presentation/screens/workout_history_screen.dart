@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/routes.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../domain/entities/workout_session.dart';
 import '../providers/workout_provider.dart';
 
@@ -18,6 +20,7 @@ class WorkoutHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.home),
         title: const Text('Workout History'),
       ),
       body: historyAsync.when(

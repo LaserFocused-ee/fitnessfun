@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../../../shared/widgets/rating_slider.dart';
 import '../providers/checkin_provider.dart';
 import '../widgets/checkin_form_widgets.dart';
@@ -22,6 +23,7 @@ class CheckinFormScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: AppRoutes.home),
         title: const Text('Daily Check-in'),
         actions: [
           TextButton.icon(

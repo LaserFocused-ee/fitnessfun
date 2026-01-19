@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../domain/entities/workout_session.dart';
 import '../providers/workout_provider.dart';
 import '../providers/workout_timer_provider.dart';
@@ -326,11 +328,17 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           );
         },
         loading: () => Scaffold(
-          appBar: AppBar(title: const Text('Starting Workout...')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.myPlans),
+            title: const Text('Starting Workout...'),
+          ),
           body: const Center(child: CircularProgressIndicator()),
         ),
         error: (error, _) => Scaffold(
-          appBar: AppBar(title: const Text('Workout')),
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.myPlans),
+            title: const Text('Workout'),
+          ),
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/routes.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../../domain/entities/trainer_client.dart';
 import '../providers/client_provider.dart';
 import '../widgets/client_checkins_tab.dart';
@@ -59,6 +61,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
 
         return Scaffold(
           appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: AppRoutes.clients),
             title: Text(client.clientName ?? 'Client Details'),
             bottom: TabBar(
               controller: _tabController,
@@ -87,11 +90,17 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
         );
       },
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Client Details')),
+        appBar: AppBar(
+          leading: const AppBackButton(fallbackRoute: AppRoutes.clients),
+          title: const Text('Client Details'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('Client Details')),
+        appBar: AppBar(
+          leading: const AppBackButton(fallbackRoute: AppRoutes.clients),
+          title: const Text('Client Details'),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
