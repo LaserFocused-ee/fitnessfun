@@ -258,20 +258,25 @@ GoRouter router(Ref ref) {
         routes: [
           GoRoute(
             path: 'create',
-            builder: (context, state) => const PlanBuilderScreen(),
+            builder: (context, state) {
+              final clientId = state.uri.queryParameters['clientId']!;
+              return PlanBuilderScreen(clientId: clientId);
+            },
           ),
           GoRoute(
             path: ':planId',
             builder: (context, state) {
               final planId = state.pathParameters['planId']!;
-              return PlanDetailScreen(planId: planId);
+              final clientId = state.uri.queryParameters['clientId'];
+              return PlanDetailScreen(planId: planId, clientId: clientId);
             },
             routes: [
               GoRoute(
                 path: 'edit',
                 builder: (context, state) {
                   final planId = state.pathParameters['planId']!;
-                  return PlanBuilderScreen(planId: planId);
+                  final clientId = state.uri.queryParameters['clientId']!;
+                  return PlanBuilderScreen(planId: planId, clientId: clientId);
                 },
               ),
             ],

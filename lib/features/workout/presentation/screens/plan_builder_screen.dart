@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/error/failures.dart';
+import '../../../clients/presentation/providers/client_detail_provider.dart';
 import '../../../exercise/domain/entities/exercise.dart';
 import '../../../exercise/presentation/providers/exercise_provider.dart';
 import '../../domain/entities/plan_exercise_set.dart';
@@ -12,9 +13,14 @@ class PlanBuilderScreen extends ConsumerStatefulWidget {
   const PlanBuilderScreen({
     super.key,
     this.planId,
+    required this.clientId,
   });
 
+  /// Plan ID when editing an existing plan.
   final String? planId;
+
+  /// Client ID - required for creating (auto-assigns plan to client).
+  final String clientId;
 
   bool get isEditing => planId != null;
 
@@ -111,17 +117,38 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
           ),
         );
       },
-      (plan) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.isEditing
-                  ? 'Plan updated successfully'
-                  : 'Plan created successfully',
-            ),
-          ),
-        );
+      (plan) async {
+        // Auto-assign the plan to the client on create
+        if (!widget.isEditing) {
+          final assignResult = await ref
+              .read(workoutRepositoryProvider)
+              .assignPlanToClient(
+                clientId: widget.clientId,
+                planId: plan.id,
+              );
+
+          assignResult.fold(
+            (failure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Plan created but failed to assign: ${failure.displayMessage}'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+              );
+            },
+            (_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Plan created and assigned!')),
+              );
+            },
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Plan updated successfully')),
+          );
+        }
         ref.invalidate(trainerPlansProvider);
+        ref.invalidate(clientAssignedPlansProvider(widget.clientId));
         context.pop();
       },
     );

@@ -14,10 +14,12 @@ class PlanDetailScreen extends ConsumerWidget {
   const PlanDetailScreen({
     super.key,
     required this.planId,
+    this.clientId,
     this.isClientView = false,
   });
 
   final String planId;
+  final String? clientId;
   final bool isClientView;
 
   @override
@@ -34,11 +36,12 @@ class PlanDetailScreen extends ConsumerWidget {
             actions: [
               // Trainer-only actions
               if (!isClientView) ...[
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => context.push('/plans/$planId/edit'),
-                  tooltip: 'Edit Plan',
-                ),
+                if (clientId != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => context.push('/plans/$planId/edit?clientId=$clientId'),
+                    tooltip: 'Edit Plan',
+                  ),
                 PopupMenuButton(
                   itemBuilder: (context) => [
                     const PopupMenuItem(

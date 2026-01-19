@@ -85,13 +85,6 @@ class TrainerHomeScreen extends ConsumerWidget {
                       color: colorScheme.surfaceContainerHighest,
                       onTap: () => context.go(AppRoutes.videos),
                     ),
-                    _DashboardCard(
-                      icon: Icons.assignment,
-                      title: 'Plans',
-                      subtitle: 'Workout plans',
-                      color: colorScheme.tertiaryContainer,
-                      onTap: () => context.go(AppRoutes.plans),
-                    ),
                   ],
                 );
               },

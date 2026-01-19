@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../workout/domain/entities/workout_plan.dart';
 import '../providers/client_detail_provider.dart';
-import 'assign_plan_dialog.dart';
 
 /// Tab displaying a client's assigned workout plans for trainers.
 class ClientPlansTab extends ConsumerWidget {
@@ -56,9 +56,9 @@ class ClientPlansTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: () => _showAssignPlanDialog(context, ref),
+                      onPressed: () => _createPlan(context),
                       icon: const Icon(Icons.add),
-                      label: const Text('Assign Plan'),
+                      label: const Text('Create Plan'),
                     ),
                   ],
                 ),
@@ -91,14 +91,14 @@ class ClientPlansTab extends ConsumerWidget {
                 ],
               ),
 
-            // FAB for assigning new plan
+            // FAB for creating new plan
             Positioned(
               bottom: 16,
               right: 16,
               child: FloatingActionButton.extended(
-                onPressed: () => _showAssignPlanDialog(context, ref),
+                onPressed: () => _createPlan(context),
                 icon: const Icon(Icons.add),
-                label: const Text('Assign Plan'),
+                label: const Text('Create Plan'),
               ),
             ),
           ],
@@ -124,11 +124,9 @@ class ClientPlansTab extends ConsumerWidget {
     );
   }
 
-  void _showAssignPlanDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AssignPlanDialog(clientId: clientId),
-    );
+  void _createPlan(BuildContext context) {
+    // Navigate to plan builder with clientId to auto-assign on creation
+    context.push('/plans/create?clientId=$clientId');
   }
 }
 
@@ -186,9 +184,12 @@ class _PlanCard extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/plans/${plan.planId}?clientId=$clientId'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -271,6 +272,7 @@ class _PlanCard extends ConsumerWidget {
               ),
             ],
           ],
+        ),
         ),
       ),
     );
