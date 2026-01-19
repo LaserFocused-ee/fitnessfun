@@ -224,13 +224,11 @@ class SupabaseAuthRepository implements AuthRepository {
           .single();
       print('getCurrentProfile: profileResponse=$profileResponse');
 
-      // Fetch user's roles from user_roles table
-      print('getCurrentProfile: fetching user_roles...');
+      // Fetch user's roles using RPC function (bypasses RLS issues)
+      print('getCurrentProfile: fetching user_roles via RPC for userId=$userId');
       final rolesResponse = await _client
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId);
-      print('getCurrentProfile: rolesResponse=$rolesResponse');
+          .rpc('get_user_roles', params: {'p_user_id': userId});
+      print('getCurrentProfile: rolesResponse=$rolesResponse (length=${(rolesResponse as List).length})');
 
       // Extract role strings from the response
       final roles = (rolesResponse as List)
