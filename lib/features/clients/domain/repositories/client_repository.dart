@@ -43,6 +43,12 @@ abstract class ClientRepository {
   /// Leave current trainer
   Future<Either<Failure, Unit>> leaveTrainer(String relationshipId);
 
+  /// Set a trainer as the primary (active) trainer for the client
+  Future<Either<Failure, Unit>> setPrimaryTrainer({
+    required String relationshipId,
+    required String clientId,
+  });
+
   // ===== Search =====
 
   /// Search for clients by email (for trainer to invite)

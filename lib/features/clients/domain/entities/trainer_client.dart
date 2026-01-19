@@ -11,6 +11,7 @@ class TrainerClient with _$TrainerClient {
     required String trainerId,
     required String clientId,
     @Default('pending') String status, // pending, active, inactive
+    @Default(false) bool isPrimary, // true if this is the client's active trainer
     DateTime? createdAt,
     // Denormalized fields for display
     String? trainerName,

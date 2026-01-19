@@ -7,6 +7,7 @@ import '../../../../shared/widgets/role_switch_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../workout/domain/entities/workout_session.dart';
 import '../../../workout/presentation/providers/workout_provider.dart';
+import '../../domain/entities/trainer_client.dart';
 import '../providers/client_provider.dart';
 
 class ClientHomeScreen extends ConsumerWidget {
@@ -17,7 +18,7 @@ class ClientHomeScreen extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider).valueOrNull;
     final trainersAsync = ref.watch(clientTrainersProvider);
     final invitationsAsync = ref.watch(pendingInvitationsProvider);
-    final plansAsync = ref.watch(clientPlansProvider);
+    final plansAsync = ref.watch(clientPlansForPrimaryTrainerProvider);
     final activeWorkout = ref.watch(activeWorkoutNotifierProvider).valueOrNull;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -88,6 +89,13 @@ class ClientHomeScreen extends ConsumerWidget {
               icon: Icons.people,
               color: colorScheme.primary,
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap a trainer to see their plans',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
             const SizedBox(height: 8),
             trainersAsync.when(
               data: (trainers) {
@@ -130,20 +138,9 @@ class ClientHomeScreen extends ConsumerWidget {
 
                 return Column(
                   children: trainers
-                      .map((trainer) => Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: colorScheme.primaryContainer,
-                                child: Icon(
-                                  Icons.person,
-                                  color: colorScheme.onPrimaryContainer,
-                                ),
-                              ),
-                              title:
-                                  Text(trainer.trainerName ?? 'Your Trainer'),
-                              subtitle: Text(trainer.trainerEmail ?? ''),
-                            ),
+                      .map((trainer) => _TrainerCard(
+                            trainer: trainer,
+                            onTap: () => _setActiveTrainer(context, ref, trainer),
                           ))
                       .toList(),
                 );
@@ -219,8 +216,16 @@ class ClientHomeScreen extends ConsumerWidget {
             plansAsync.when(
               data: (plans) {
                 final activePlans = plans.where((p) => p.isActive).toList();
+                final primaryTrainer =
+                    ref.watch(primaryTrainerProvider).valueOrNull;
 
                 if (activePlans.isEmpty) {
+                  // Check if user has trainers but no primary selected
+                  final trainers =
+                      ref.watch(clientTrainersProvider).valueOrNull ?? [];
+                  final hasTrainers = trainers.isNotEmpty;
+                  final hasPrimary = primaryTrainer != null;
+
                   return Card(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -235,7 +240,9 @@ class ClientHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No workout plans assigned',
+                              hasTrainers && !hasPrimary
+                                  ? 'Select a trainer above'
+                                  : 'No workout plans assigned',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 color: colorScheme.onSurface
                                     .withValues(alpha: 0.6),
@@ -243,7 +250,11 @@ class ClientHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Your trainer will assign plans to you',
+                              hasTrainers && !hasPrimary
+                                  ? 'Tap a trainer to see their plans'
+                                  : hasPrimary
+                                      ? '${primaryTrainer.trainerName} has not assigned any plans yet'
+                                      : 'Your trainer will assign plans to you',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurface
                                     .withValues(alpha: 0.4),
@@ -421,6 +432,39 @@ class ClientHomeScreen extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _setActiveTrainer(
+    BuildContext context,
+    WidgetRef ref,
+    TrainerClient trainer,
+  ) async {
+    // Don't do anything if already primary
+    if (trainer.isPrimary) return;
+
+    final result = await ref
+        .read(primaryTrainerNotifierProvider.notifier)
+        .setPrimary(trainer.id);
+
+    if (context.mounted) {
+      result.fold(
+        (failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(failure.displayMessage),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        },
+        (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Now viewing plans from ${trainer.trainerName}'),
+            ),
+          );
+        },
+      );
+    }
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -570,6 +614,88 @@ class _InvitationCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrainerCard extends StatelessWidget {
+  const _TrainerCard({
+    required this.trainer,
+    required this.onTap,
+  });
+
+  final TrainerClient trainer;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isPrimary = trainer.isPrimary;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: isPrimary
+          ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+          : null,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: isPrimary
+                    ? colorScheme.primary
+                    : colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.person,
+                  color: isPrimary
+                      ? colorScheme.onPrimary
+                      : colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      trainer.trainerName ?? 'Your Trainer',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: isPrimary ? FontWeight.bold : null,
+                      ),
+                    ),
+                    Text(
+                      trainer.trainerEmail ?? '',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isPrimary)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Active',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

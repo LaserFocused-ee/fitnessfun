@@ -279,6 +279,23 @@ class SupabaseClientRepository implements ClientRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, Unit>> setPrimaryTrainer({
+    required String relationshipId,
+    required String clientId,
+  }) async {
+    try {
+      await _client.rpc('set_primary_trainer', params: {
+        'p_relationship_id': relationshipId,
+        'p_client_id': clientId,
+      });
+
+      return right(unit);
+    } catch (e) {
+      return left(ServerFailure(message: 'Failed to set primary trainer: $e'));
+    }
+  }
+
   // ===== Search =====
 
   @override

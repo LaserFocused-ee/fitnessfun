@@ -110,6 +110,53 @@ Future<List<TrainerClient>> clientTrainers(ClientTrainersRef ref) async {
   );
 }
 
+/// Provides the client's primary (active) trainer
+@riverpod
+Future<TrainerClient?> primaryTrainer(PrimaryTrainerRef ref) async {
+  final trainers = await ref.watch(clientTrainersProvider.future);
+
+  // Find the primary trainer, or return the first one if none is marked primary
+  final primary = trainers.where((t) => t.isPrimary).firstOrNull;
+  if (primary != null) return primary;
+
+  // If no primary is set but trainers exist, return null (user should select one)
+  return trainers.isNotEmpty ? trainers.first : null;
+}
+
+/// Notifier for setting the primary trainer
+@riverpod
+class PrimaryTrainerNotifier extends _$PrimaryTrainerNotifier {
+  @override
+  AsyncValue<void> build() => const AsyncData(null);
+
+  Future<Either<Failure, Unit>> setPrimary(String relationshipId) async {
+    state = const AsyncLoading();
+
+    final repo = ref.read(clientRepositoryProvider);
+    final profile = ref.read(currentProfileProvider).valueOrNull;
+
+    if (profile == null) {
+      state = const AsyncData(null);
+      return left(const AuthFailure(message: 'Not authenticated'));
+    }
+
+    final result = await repo.setPrimaryTrainer(
+      relationshipId: relationshipId,
+      clientId: profile.id,
+    );
+
+    state = result.fold(
+      (failure) => AsyncError(failure, StackTrace.current),
+      (_) => const AsyncData(null),
+    );
+
+    // Refresh trainers list to update isPrimary flags
+    ref.invalidate(clientTrainersProvider);
+
+    return result;
+  }
+}
+
 /// Provides pending invitations for the client
 @riverpod
 Future<List<TrainerClient>> pendingInvitations(PendingInvitationsRef ref) async {

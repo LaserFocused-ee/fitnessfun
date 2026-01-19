@@ -32,14 +32,17 @@ mixin ClientPlanRepositoryMixin {
             'end_date': endDate?.toIso8601String(),
             'is_active': true,
           })
-          .select('*, workout_plans(name)')
+          .select('*, workout_plans(name, trainer_id)')
           .single();
 
-      final planName = response['workout_plans']?['name'] as String?;
+      final workoutPlan = response['workout_plans'] as Map<String, dynamic>?;
+      final planName = workoutPlan?['name'] as String?;
+      final trainerId = workoutPlan?['trainer_id'] as String?;
 
       return right(ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
+        'trainer_id': trainerId,
       }..remove('workout_plans'))));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to assign plan: $e'));
@@ -51,17 +54,20 @@ mixin ClientPlanRepositoryMixin {
     try {
       final response = await client
           .from('client_plans')
-          .select('*, workout_plans(name)')
+          .select('*, workout_plans(name, trainer_id)')
           .eq('client_id', clientId)
           .order('created_at', ascending: false);
 
       final plans = (response as List).map((json) {
         final data = json as Map<String, dynamic>;
-        final planName = data['workout_plans']?['name'] as String?;
+        final workoutPlan = data['workout_plans'] as Map<String, dynamic>?;
+        final planName = workoutPlan?['name'] as String?;
+        final trainerId = workoutPlan?['trainer_id'] as String?;
 
         return ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
           ...data,
           'plan_name': planName,
+          'trainer_id': trainerId,
         }..remove('workout_plans')));
       }).toList();
 
@@ -109,7 +115,7 @@ mixin ClientPlanRepositoryMixin {
     try {
       final response = await client
           .from('client_plans')
-          .select('*, workout_plans(name)')
+          .select('*, workout_plans(name, trainer_id)')
           .eq('client_id', clientId)
           .eq('is_active', true)
           .maybeSingle();
@@ -118,11 +124,14 @@ mixin ClientPlanRepositoryMixin {
         return right(null);
       }
 
-      final planName = response['workout_plans']?['name'] as String?;
+      final workoutPlan = response['workout_plans'] as Map<String, dynamic>?;
+      final planName = workoutPlan?['name'] as String?;
+      final trainerId = workoutPlan?['trainer_id'] as String?;
 
       return right(ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
+        'trainer_id': trainerId,
       }..remove('workout_plans'))));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to load active plan: $e'));

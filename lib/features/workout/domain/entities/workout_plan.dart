@@ -78,6 +78,7 @@ class ClientPlan with _$ClientPlan {
     required String clientId,
     required String planId,
     String? planName, // Denormalized for display
+    String? trainerId, // The trainer who created the plan
     DateTime? startDate,
     DateTime? endDate,
     @Default(true) bool isActive,

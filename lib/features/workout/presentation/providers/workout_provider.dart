@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/error/failures.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../clients/presentation/providers/client_provider.dart';
 import '../../data/repositories/workout_repository_impl.dart';
 import '../../domain/entities/workout_plan.dart';
 import '../../domain/entities/workout_session.dart';
@@ -48,7 +49,7 @@ Future<WorkoutPlan> planById(PlanByIdRef ref, String planId) async {
   );
 }
 
-/// Provides client plans for the current user (when they're a client)
+/// Provides all client plans for the current user (when they're a client)
 @riverpod
 Future<List<ClientPlan>> clientPlans(ClientPlansRef ref) async {
   final repo = ref.watch(workoutRepositoryProvider);
@@ -64,6 +65,24 @@ Future<List<ClientPlan>> clientPlans(ClientPlansRef ref) async {
     (failure) => throw Exception(failure.displayMessage),
     (plans) => plans,
   );
+}
+
+/// Provides client plans filtered by the primary (active) trainer
+@riverpod
+Future<List<ClientPlan>> clientPlansForPrimaryTrainer(
+    ClientPlansForPrimaryTrainerRef ref) async {
+  final allPlans = await ref.watch(clientPlansProvider.future);
+  final primaryTrainer = await ref.watch(primaryTrainerProvider.future);
+
+  // If no primary trainer is set, show no plans (user needs to select a trainer)
+  if (primaryTrainer == null) {
+    return [];
+  }
+
+  // Filter plans to only show those from the primary trainer
+  return allPlans
+      .where((plan) => plan.trainerId == primaryTrainer.trainerId)
+      .toList();
 }
 
 /// Provides the active plan for a client
