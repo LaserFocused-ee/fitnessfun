@@ -25,7 +25,7 @@ Future<List<TrainerClient>> trainerClients(TrainerClientsRef ref) async {
   final repo = ref.watch(clientRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
-  if (profile == null || profile.role != 'trainer') {
+  if (profile == null || profile.effectiveActiveRole != 'trainer') {
     return [];
   }
 
@@ -98,7 +98,7 @@ Future<TrainerClient?> clientTrainer(ClientTrainerRef ref) async {
   final repo = ref.watch(clientRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
-  if (profile == null || profile.role != 'client') {
+  if (profile == null || profile.effectiveActiveRole != 'client') {
     return null;
   }
 
@@ -116,7 +116,7 @@ Future<List<TrainerClient>> pendingInvitations(PendingInvitationsRef ref) async 
   final repo = ref.watch(clientRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
-  if (profile == null || profile.role != 'client') {
+  if (profile == null || profile.effectiveActiveRole != 'client') {
     return [];
   }
 
