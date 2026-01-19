@@ -75,6 +75,9 @@ GoRouter router(Ref ref) {
           'isAuthLoading=$isAuthLoading, isLoggedIn=$isLoggedIn, '
           'hasError=${authState.hasError}, isSplash=$isSplash');
 
+      // Track navigation direction for animation purposes
+      NavigationDirectionTracker().onNavigate(state.matchedLocation);
+
       // If returning from OAuth callback, wait until auth resolves
       if (OAuthCallbackDetector.wasOAuthCallback) {
         if (isLoggedIn) {

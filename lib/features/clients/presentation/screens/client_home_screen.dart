@@ -175,7 +175,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.edit_note,
                     title: 'Daily Check-in',
                     color: colorScheme.primaryContainer,
-                    onTap: () => context.go(AppRoutes.checkin),
+                    onTap: () => context.push(AppRoutes.checkin),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -184,7 +184,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.history,
                     title: 'Check-in History',
                     color: colorScheme.secondaryContainer,
-                    onTap: () => context.go(AppRoutes.checkinHistory),
+                    onTap: () => context.push(AppRoutes.checkinHistory),
                   ),
                 ),
               ],
@@ -197,7 +197,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.fitness_center,
                     title: 'Workout History',
                     color: colorScheme.tertiaryContainer,
-                    onTap: () => context.go(AppRoutes.workoutHistory),
+                    onTap: () => context.push(AppRoutes.workoutHistory),
                   ),
                 ),
                 const Expanded(child: SizedBox()),
@@ -318,7 +318,7 @@ class ClientHomeScreen extends ConsumerWidget {
                                     children: [
                                       Expanded(
                                         child: OutlinedButton.icon(
-                                          onPressed: () => context.go(
+                                          onPressed: () => context.push(
                                               '/my-plans/${plan.planId}'),
                                           icon: const Icon(Icons.visibility,
                                               size: 18),
@@ -331,7 +331,7 @@ class ClientHomeScreen extends ConsumerWidget {
                                           builder: (context) {
                                             final isActivePlan = activeWorkout?.planId == plan.planId;
                                             return FilledButton.icon(
-                                              onPressed: () => context.go(
+                                              onPressed: () => context.push(
                                                 isActivePlan
                                                   ? '/my-plans/${plan.planId}/workout?sessionId=${activeWorkout!.id}'
                                                   : '/my-plans/${plan.planId}/workout?clientPlanId=${plan.id}',
