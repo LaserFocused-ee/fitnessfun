@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../shared/widgets/rating_slider.dart';
 import '../providers/checkin_provider.dart';
@@ -231,7 +233,7 @@ class CheckinFormScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Check-in saved!')),
         );
-        Navigator.of(context).pop();
+        context.go(AppRoutes.home);
       },
     );
   }
