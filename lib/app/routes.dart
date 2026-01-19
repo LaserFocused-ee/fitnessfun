@@ -9,20 +9,27 @@ abstract final class AppRoutes {
   static const String roleSelection = '/role-selection';
   static const String addRole = '/add-role';
 
-  // Client routes
-  static const String clientHome = '/client';
-  static const String checkin = '/client/checkin';
-  static const String checkinHistory = '/client/checkin/history';
-  static const String myPlans = '/client/plans';
-  static const String workoutSession = '/client/plans/:planId/workout';
-  static const String workoutHistory = '/client/workout-history';
+  // Home - landing page that shows trainer/client content based on role
+  static const String home = '/home';
 
-  // Trainer routes
-  static const String trainerHome = '/trainer';
-  static const String clientList = '/trainer/clients';
-  static const String clientDetail = '/trainer/clients/:clientId';
-  static const String exerciseLibrary = '/trainer/exercises';
-  static const String createExercise = '/trainer/exercises/create';
-  static const String planBuilder = '/trainer/plans/create';
-  static const String editPlan = '/trainer/plans/:planId';
+  // Client routes (root level)
+  static const String checkin = '/checkin';
+  static const String checkinHistory = '/checkin/history';
+  static const String workoutHistory = '/workout-history';
+  static const String myPlans = '/my-plans';
+  static const String myPlanDetail = '/my-plans/:planId';
+  static const String workoutSession = '/my-plans/:planId/workout';
+
+  // Trainer routes (root level)
+  static const String clients = '/clients';
+  static const String clientDetail = '/clients/:clientId';
+  static const String exercises = '/exercises';
+  static const String exerciseDetail = '/exercises/:exerciseId';
+  static const String createExercise = '/exercises/create';
+  static const String editExercise = '/exercises/:exerciseId/edit';
+  static const String plans = '/plans';
+  static const String planDetail = '/plans/:planId';
+  static const String createPlan = '/plans/create';
+  static const String editPlan = '/plans/:planId/edit';
+  static const String videos = '/videos';
 }

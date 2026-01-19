@@ -60,22 +60,63 @@ Future<DailyCheckin?> todayCheckin(TodayCheckinRef ref) async {
   );
 }
 
+/// Provides a check-in for a specific date.
+@riverpod
+Future<DailyCheckin?> checkinByDate(CheckinByDateRef ref, DateTime date) async {
+  final repo = ref.watch(checkinRepositoryProvider);
+  final profile = await ref.watch(currentProfileProvider.future);
+
+  if (profile == null) return null;
+
+  final result = await repo.getCheckinByDate(
+    clientId: profile.id,
+    date: date,
+  );
+
+  return result.fold(
+    (failure) => throw failure,
+    (checkin) => checkin,
+  );
+}
+
 /// Notifier for managing the check-in form state.
+/// Accepts an optional date parameter - defaults to today.
 @riverpod
 class CheckinFormNotifier extends _$CheckinFormNotifier {
+  DateTime _selectedDate = DateTime.now();
+
   @override
   Future<DailyCheckin> build() async {
-    final existing = await ref.watch(todayCheckinProvider.future);
-    final profile = await ref.watch(currentProfileProvider.future);
+    return _loadCheckinForDate(_selectedDate);
+  }
 
-    if (existing != null) {
-      return existing;
-    }
+  Future<DailyCheckin> _loadCheckinForDate(DateTime date) async {
+    final profile = await ref.read(currentProfileProvider.future);
+    final repo = ref.read(checkinRepositoryProvider);
 
-    return DailyCheckin.empty(clientId: profile?.id ?? '');
+    final result = await repo.getCheckinByDate(
+      clientId: profile?.id ?? '',
+      date: date,
+    );
+
+    return result.fold(
+      (failure) => DailyCheckin.empty(clientId: profile?.id ?? '', date: date),
+      (checkin) => checkin ?? DailyCheckin.empty(clientId: profile?.id ?? '', date: date),
+    );
   }
 
   CheckinRepository get _repo => ref.read(checkinRepositoryProvider);
+
+  /// Get the currently selected date.
+  DateTime get selectedDate => _selectedDate;
+
+  /// Change the date and load/create check-in for that date.
+  Future<void> changeDate(DateTime newDate) async {
+    _selectedDate = newDate;
+    state = const AsyncLoading();
+    final checkin = await _loadCheckinForDate(newDate);
+    state = AsyncData(checkin);
+  }
 
   /// Update a field in the check-in.
   void updateField<T>(T? Function(DailyCheckin) getter, DailyCheckin Function(T?) updater) {
@@ -119,10 +160,10 @@ class CheckinFormNotifier extends _$CheckinFormNotifier {
     });
   }
 
-  /// Update training session.
-  void updateTrainingSession(String? value) {
+  /// Update workout plan ID.
+  void updateWorkoutPlanId(String? value) {
     state.whenData((checkin) {
-      state = AsyncData(checkin.copyWith(trainingSession: value));
+      state = AsyncData(checkin.copyWith(workoutPlanId: value));
     });
   }
 
@@ -222,8 +263,8 @@ class CheckinFormNotifier extends _$CheckinFormNotifier {
     result.fold(
       (failure) => null,
       (saved) {
-        state = AsyncData(saved);
-        // Invalidate the checkins list to refresh
+        // Don't update state here - let the screen pop and next time
+        // it opens it will fetch fresh data from todayCheckinProvider
         ref.invalidate(checkinsProvider);
         ref.invalidate(todayCheckinProvider);
       },

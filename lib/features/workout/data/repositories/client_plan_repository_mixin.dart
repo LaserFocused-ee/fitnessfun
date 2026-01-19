@@ -37,7 +37,7 @@ mixin ClientPlanRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      return right(ClientPlan.fromJson(snakeToCamel({
+      return right(ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'))));
@@ -59,7 +59,7 @@ mixin ClientPlanRepositoryMixin {
         final data = json as Map<String, dynamic>;
         final planName = data['workout_plans']?['name'] as String?;
 
-        return ClientPlan.fromJson(snakeToCamel({
+        return ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
           ...data,
           'plan_name': planName,
         }..remove('workout_plans')));
@@ -82,7 +82,7 @@ mixin ClientPlanRepositoryMixin {
 
       final plans = (response as List).map((json) {
         final data = json as Map<String, dynamic>;
-        return ClientPlan.fromJson(snakeToCamel(data..remove('profiles')));
+        return ClientPlan.fromJson(snakeToCamel(<String, dynamic>{...data}..remove('profiles')));
       }).toList();
 
       return right(plans);
@@ -120,7 +120,7 @@ mixin ClientPlanRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      return right(ClientPlan.fromJson(snakeToCamel({
+      return right(ClientPlan.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'))));

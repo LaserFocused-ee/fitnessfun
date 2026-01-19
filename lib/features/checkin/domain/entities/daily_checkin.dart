@@ -19,7 +19,7 @@ class DailyCheckin with _$DailyCheckin {
     // Activity
     int? steps,
     int? cardioMinutes,
-    String? trainingSession,
+    String? workoutPlanId,
 
     // Recovery metrics (1-7 scale)
     int? performance,
@@ -45,11 +45,12 @@ class DailyCheckin with _$DailyCheckin {
     DateTime? updatedAt,
   }) = _DailyCheckin;
 
-  /// Create an empty check-in for today.
-  factory DailyCheckin.empty({required String clientId}) => DailyCheckin(
+  /// Create an empty check-in for a given date (defaults to today).
+  factory DailyCheckin.empty({required String clientId, DateTime? date}) =>
+      DailyCheckin(
         id: '',
         clientId: clientId,
-        date: DateTime.now(),
+        date: date ?? DateTime.now(),
       );
 
   factory DailyCheckin.fromJson(Map<String, dynamic> json) =>

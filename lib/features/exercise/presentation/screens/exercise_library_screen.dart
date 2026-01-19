@@ -34,7 +34,7 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => context.push('/trainer/exercises/create'),
+            onPressed: () => context.push('/exercises/create'),
             tooltip: 'Add Exercise',
           ),
         ],
@@ -138,7 +138,7 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
                     return ExerciseCard(
                       exercise: exercise,
                       onTap: () => context.push(
-                        '/trainer/exercises/${exercise.id}',
+                        '/exercises/${exercise.id}',
                       ),
                     );
                   },

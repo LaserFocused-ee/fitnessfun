@@ -27,7 +27,7 @@ class ExerciseDetailScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit),
-                onPressed: () => context.push('/trainer/exercises/$exerciseId/edit'),
+                onPressed: () => context.push('/exercises/$exerciseId/edit'),
                 tooltip: 'Edit',
               ),
             ],

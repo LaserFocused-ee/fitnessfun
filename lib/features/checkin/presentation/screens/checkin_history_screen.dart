@@ -52,8 +52,8 @@ class CheckinHistoryScreen extends ConsumerWidget {
                       if (checkin.bodyweightKg != null)
                         '${checkin.bodyweightKg}kg',
                       if (checkin.steps != null) '${checkin.steps} steps',
-                      if (checkin.trainingSession != null)
-                        checkin.trainingSession,
+                      if (checkin.workoutPlanId != null)
+                        'Trained',
                     ].join(' • '),
                   ),
                   trailing: const Icon(Icons.chevron_right),

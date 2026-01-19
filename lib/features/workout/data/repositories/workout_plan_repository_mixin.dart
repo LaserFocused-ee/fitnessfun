@@ -21,7 +21,7 @@ mixin WorkoutPlanRepositoryMixin {
 
       final plans = (response as List)
           .map((json) =>
-              WorkoutPlan.fromJson(snakeToCamel(json as Map<String, dynamic>)))
+              WorkoutPlan.fromJson(snakeToCamel(json)))
           .toList();
 
       return right(plans);
@@ -63,18 +63,18 @@ mixin WorkoutPlanRepositoryMixin {
         // Parse the sets
         final setsData = exerciseData['plan_exercise_sets'] as List? ?? [];
         final sets = setsData
-            .map((s) => PlanExerciseSet.fromJson(snakeToCamel(s as Map<String, dynamic>)))
+            .map((s) => PlanExerciseSet.fromJson(snakeToCamel(s)))
             .toList()
           ..sort((a, b) => a.setNumber.compareTo(b.setNumber));
 
-        return PlanExercise.fromJson(snakeToCamel({
+        return PlanExercise.fromJson(snakeToCamel(<String, dynamic>{
           ...exerciseData,
           'exercise_name': exerciseName,
           'exercise_video_url': videoUrl,
         }..remove('exercises')..remove('plan_exercise_sets'))).copyWith(sets: sets);
       }).toList();
 
-      final plan = WorkoutPlan.fromJson(snakeToCamel(planResponse))
+      final plan = WorkoutPlan.fromJson(snakeToCamel(planResponse as Map<String, dynamic>))
           .copyWith(exercises: exercises);
 
       return right(plan);
@@ -95,7 +95,7 @@ mixin WorkoutPlanRepositoryMixin {
           .select()
           .single();
 
-      return right(WorkoutPlan.fromJson(snakeToCamel(response)));
+      return right(WorkoutPlan.fromJson(snakeToCamel(response as Map<String, dynamic>)));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to create plan: $e'));
     }
@@ -113,7 +113,7 @@ mixin WorkoutPlanRepositoryMixin {
           .select()
           .single();
 
-      return right(WorkoutPlan.fromJson(snakeToCamel(response)));
+      return right(WorkoutPlan.fromJson(snakeToCamel(response as Map<String, dynamic>)));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to update plan: $e'));
     }

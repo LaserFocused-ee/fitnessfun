@@ -182,9 +182,10 @@ class AuthNotifier extends _$AuthNotifier {
         return false;
       },
       (_) {
-        // Invalidate the current profile to refetch it
-        ref.invalidate(currentProfileProvider);
+        // Set state FIRST before invalidating to avoid race condition
         state = const AsyncData(null);
+        // Then invalidate the current profile to refetch it
+        ref.invalidate(currentProfileProvider);
         return true;
       },
     );
@@ -192,52 +193,60 @@ class AuthNotifier extends _$AuthNotifier {
 }
 
 /// Notifier for role switching and adding new roles.
+/// Note: This notifier deliberately does NOT use state (AsyncLoading/AsyncData)
+/// because ref.invalidate() causes Riverpod state management conflicts.
 @riverpod
 class RoleSwitcher extends _$RoleSwitcher {
   @override
   FutureOr<void> build() {
-    // Initial state is void
+    // No state needed - this is just an action handler
   }
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
   /// Switch to a different active role.
   Future<bool> switchRole(UserRole newRole) async {
-    state = const AsyncLoading();
+    try {
+      final result = await _repo.updateActiveRole(newRole);
 
-    final result = await _repo.updateActiveRole(newRole);
-
-    return result.fold(
-      (failure) {
-        state = AsyncError(failure, StackTrace.current);
-        return false;
-      },
-      (_) {
-        // Invalidate the current profile to refetch it
-        ref.invalidate(currentProfileProvider);
-        state = const AsyncData(null);
-        return true;
-      },
-    );
+      return result.fold(
+        (failure) {
+          print('RoleSwitcher: switchRole failed: $failure');
+          return false;
+        },
+        (_) {
+          print('RoleSwitcher: switchRole succeeded, invalidating profile');
+          // Invalidate the current profile to refetch with new role
+          ref.invalidate(currentProfileProvider);
+          return true;
+        },
+      );
+    } catch (e) {
+      print('RoleSwitcher: switchRole exception: $e');
+      return false;
+    }
   }
 
   /// Add a new role to the user's available roles.
   Future<bool> addRole(UserRole newRole) async {
-    state = const AsyncLoading();
+    try {
+      final result = await _repo.addRole(newRole);
 
-    final result = await _repo.addRole(newRole);
-
-    return result.fold(
-      (failure) {
-        state = AsyncError(failure, StackTrace.current);
-        return false;
-      },
-      (_) {
-        // Invalidate the current profile to refetch it
-        ref.invalidate(currentProfileProvider);
-        state = const AsyncData(null);
-        return true;
-      },
-    );
+      return result.fold(
+        (failure) {
+          print('RoleSwitcher: addRole failed: $failure');
+          return false;
+        },
+        (_) {
+          print('RoleSwitcher: addRole succeeded, invalidating profile');
+          // Invalidate the current profile to refetch with new role
+          ref.invalidate(currentProfileProvider);
+          return true;
+        },
+      );
+    } catch (e) {
+      print('RoleSwitcher: addRole exception: $e');
+      return false;
+    }
   }
 }

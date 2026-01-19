@@ -173,7 +173,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.edit_note,
                     title: 'Daily Check-in',
                     color: colorScheme.primaryContainer,
-                    onTap: () => context.push('/client/checkin'),
+                    onTap: () => context.go(AppRoutes.checkin),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -182,7 +182,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.history,
                     title: 'Check-in History',
                     color: colorScheme.secondaryContainer,
-                    onTap: () => context.push('/client/checkin/history'),
+                    onTap: () => context.go(AppRoutes.checkinHistory),
                   ),
                 ),
               ],
@@ -195,7 +195,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     icon: Icons.fitness_center,
                     title: 'Workout History',
                     color: colorScheme.tertiaryContainer,
-                    onTap: () => context.push('/client/workout-history'),
+                    onTap: () => context.go(AppRoutes.workoutHistory),
                   ),
                 ),
                 const Expanded(child: SizedBox()),
@@ -302,8 +302,8 @@ class ClientHomeScreen extends ConsumerWidget {
                                     children: [
                                       Expanded(
                                         child: OutlinedButton.icon(
-                                          onPressed: () => context.push(
-                                              '/client/plans/${plan.planId}'),
+                                          onPressed: () => context.go(
+                                              '/my-plans/${plan.planId}'),
                                           icon: const Icon(Icons.visibility,
                                               size: 18),
                                           label: const Text('View'),
@@ -315,10 +315,10 @@ class ClientHomeScreen extends ConsumerWidget {
                                           builder: (context) {
                                             final isActivePlan = activeWorkout?.planId == plan.planId;
                                             return FilledButton.icon(
-                                              onPressed: () => context.push(
+                                              onPressed: () => context.go(
                                                 isActivePlan
-                                                  ? '/client/plans/${plan.planId}/workout?sessionId=${activeWorkout!.id}'
-                                                  : '/client/plans/${plan.planId}/workout?clientPlanId=${plan.id}',
+                                                  ? '/my-plans/${plan.planId}/workout?sessionId=${activeWorkout!.id}'
+                                                  : '/my-plans/${plan.planId}/workout?clientPlanId=${plan.id}',
                                               ),
                                               icon: Icon(
                                                 isActivePlan ? Icons.play_arrow : Icons.play_arrow,

@@ -83,9 +83,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (success && mounted) {
       // Navigate based on role
       if (role == UserRole.trainer) {
-        context.go(AppRoutes.trainerHome);
+        context.go(AppRoutes.home);
       } else {
-        context.go(AppRoutes.clientHome);
+        context.go(AppRoutes.home);
       }
     }
   }

@@ -31,20 +31,20 @@ mixin WorkoutSessionRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      // Get the plan exercises with their sets and exercise details (including tempo and notes)
+      // Get the plan exercises with their sets and exercise details
       final planExercises = await client
           .from('plan_exercises')
-          .select('*, exercises(name, tempo, notes), plan_exercise_sets(*)')
+          .select('*, exercises(name, tempo), plan_exercise_sets(*)')
           .eq('plan_id', planId)
           .order('order_index', ascending: true);
 
-      final sessionJson = snakeToCamel({
+      final sessionJson = snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'));
 
       // Ensure startedAt is set (workaround for any parsing issues)
-      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+      final session = WorkoutSession.fromJson(sessionJson as Map<String, dynamic>).copyWith(
         startedAt: sessionJson['startedAt'] != null
             ? DateTime.tryParse(sessionJson['startedAt'].toString())
             : DateTime.now().toUtc(),
@@ -57,7 +57,7 @@ mixin WorkoutSessionRepositoryMixin {
         final exerciseInfo = exerciseData['exercises'] as Map<String, dynamic>?;
         final exerciseName = exerciseInfo?['name'] as String?;
         final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
-        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+        final exerciseNotesDefault = exerciseData['notes'] as String?;
 
         // Get the sets for this exercise
         final planSets = (exerciseData['plan_exercise_sets'] as List? ?? [])
@@ -90,7 +90,7 @@ mixin WorkoutSessionRepositoryMixin {
         // Use exercise default tempo (prefer over plan_exercises.tempo for backward compatibility)
         final targetTempo = exerciseTempoDefault ?? exerciseData['tempo'] as String?;
 
-        exerciseLogs.add(ExerciseLog.fromJson(snakeToCamel({
+        exerciseLogs.add(ExerciseLog.fromJson(snakeToCamel(<String, dynamic>{
           ...logResponse,
           'exercise_name': exerciseName,
           'exercise_notes': exerciseNotesDefault,
@@ -123,7 +123,7 @@ mixin WorkoutSessionRepositoryMixin {
 
       final planName = response['workout_plans']?['name'] as String?;
 
-      return right(WorkoutSession.fromJson(snakeToCamel({
+      return right(WorkoutSession.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'))));
@@ -146,7 +146,7 @@ mixin WorkoutSessionRepositoryMixin {
       // Get exercise logs with plan exercise details and exercise defaults
       final logsResponse = await client
           .from('exercise_logs')
-          .select('*, plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))')
+          .select('*, plan_exercises(tempo, rest_min, rest_max, notes, exercises(name, tempo))')
           .eq('session_id', sessionId)
           .order('created_at', ascending: true);
 
@@ -156,11 +156,11 @@ mixin WorkoutSessionRepositoryMixin {
         final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
         final exerciseName = exerciseInfo?['name'] as String?;
         final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
-        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+        final exerciseNotesDefault = planExercise?['notes'] as String?;
         // Prefer exercise tempo over plan_exercise tempo
         final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
-        return ExerciseLog.fromJson(snakeToCamel({
+        return ExerciseLog.fromJson(snakeToCamel(<String, dynamic>{
           ...logData,
           'exercise_name': exerciseName,
           'exercise_notes': exerciseNotesDefault,
@@ -170,13 +170,13 @@ mixin WorkoutSessionRepositoryMixin {
         }..remove('plan_exercises')));
       }).toList();
 
-      final sessionJson = snakeToCamel({
+      final sessionJson = snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'));
 
       // Ensure startedAt is set (workaround for any parsing issues)
-      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+      final session = WorkoutSession.fromJson(sessionJson as Map<String, dynamic>).copyWith(
         exerciseLogs: logs,
         startedAt: sessionJson['startedAt'] != null
             ? DateTime.tryParse(sessionJson['startedAt'].toString())
@@ -201,7 +201,7 @@ mixin WorkoutSessionRepositoryMixin {
             workout_plans(name),
             exercise_logs(
               *,
-              plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))
+              plan_exercises(tempo, rest_min, rest_max, notes, exercises(name, tempo))
             )
           ''')
           .eq('client_id', clientId)
@@ -221,11 +221,11 @@ mixin WorkoutSessionRepositoryMixin {
           final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
           final exerciseName = exerciseInfo?['name'] as String?;
           final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
-          final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+          final exerciseNotesDefault = planExercise?['notes'] as String?;
           // Prefer exercise tempo over plan_exercise tempo
           final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
-          return snakeToCamel({
+          return snakeToCamel(<String, dynamic>{
             ...log,
             'exercise_name': exerciseName,
             'exercise_notes': exerciseNotesDefault,
@@ -235,7 +235,7 @@ mixin WorkoutSessionRepositoryMixin {
           }..remove('plan_exercises'));
         }).toList();
 
-        return WorkoutSession.fromJson(snakeToCamel({
+        return WorkoutSession.fromJson(snakeToCamel(<String, dynamic>{
           ...data,
           'plan_name': planName,
           'exercise_logs': exerciseLogs,
@@ -264,7 +264,7 @@ mixin WorkoutSessionRepositoryMixin {
         final data = json as Map<String, dynamic>;
         final planName = data['workout_plans']?['name'] as String?;
 
-        return WorkoutSession.fromJson(snakeToCamel({
+        return WorkoutSession.fromJson(snakeToCamel(<String, dynamic>{
           ...data,
           'plan_name': planName,
         }..remove('workout_plans')));
@@ -310,7 +310,7 @@ mixin WorkoutSessionRepositoryMixin {
       final logsResponse = await client
           .from('exercise_logs')
           .select(
-              '*, plan_exercises(tempo, rest_min, rest_max, exercises(name, tempo, notes))')
+              '*, plan_exercises(tempo, rest_min, rest_max, notes, exercises(name, tempo))')
           .eq('session_id', response['id'])
           .order('created_at', ascending: true);
 
@@ -320,11 +320,11 @@ mixin WorkoutSessionRepositoryMixin {
         final exerciseInfo = planExercise?['exercises'] as Map<String, dynamic>?;
         final exerciseName = exerciseInfo?['name'] as String?;
         final exerciseTempoDefault = exerciseInfo?['tempo'] as String?;
-        final exerciseNotesDefault = exerciseInfo?['notes'] as String?;
+        final exerciseNotesDefault = planExercise?['notes'] as String?;
         // Prefer exercise tempo over plan_exercise tempo
         final targetTempo = exerciseTempoDefault ?? planExercise?['tempo'] as String?;
 
-        return ExerciseLog.fromJson(snakeToCamel({
+        return ExerciseLog.fromJson(snakeToCamel(<String, dynamic>{
           ...logData,
           'exercise_name': exerciseName,
           'exercise_notes': exerciseNotesDefault,
@@ -334,12 +334,12 @@ mixin WorkoutSessionRepositoryMixin {
         }..remove('plan_exercises')));
       }).toList();
 
-      final sessionJson = snakeToCamel({
+      final sessionJson = snakeToCamel(<String, dynamic>{
         ...response,
         'plan_name': planName,
       }..remove('workout_plans'));
 
-      final session = WorkoutSession.fromJson(sessionJson).copyWith(
+      final session = WorkoutSession.fromJson(sessionJson as Map<String, dynamic>).copyWith(
         exerciseLogs: logs,
         startedAt: sessionJson['startedAt'] != null
             ? DateTime.tryParse(sessionJson['startedAt'].toString())

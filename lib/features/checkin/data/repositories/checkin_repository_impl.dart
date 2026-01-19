@@ -32,7 +32,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
 
       final response = await query.order('date', ascending: false);
       final checkins = (response as List)
-          .map((json) => DailyCheckin.fromJson(json as Map<String, dynamic>))
+          .map((json) => DailyCheckin.fromJson(_snakeToCamel(json as Map<String, dynamic>)))
           .toList();
 
       return right(checkins);
@@ -62,7 +62,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
         return right(null);
       }
 
-      return right(DailyCheckin.fromJson(response));
+      return right(DailyCheckin.fromJson(_snakeToCamel(response)));
     } on PostgrestException catch (e) {
       return left(Failure.server(message: e.message, code: e.code));
     } catch (e) {
@@ -91,7 +91,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
             .insert(data)
             .select()
             .single();
-        return right(DailyCheckin.fromJson(response));
+        return right(DailyCheckin.fromJson(_snakeToCamel(response)));
       } else {
         // Update existing
         final response = await _client
@@ -100,7 +100,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
             .eq('id', checkin.id)
             .select()
             .single();
-        return right(DailyCheckin.fromJson(response));
+        return right(DailyCheckin.fromJson(_snakeToCamel(response)));
       }
     } on PostgrestException catch (e) {
       // Handle unique constraint (upsert on date)
@@ -119,7 +119,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
               .upsert(data, onConflict: 'client_id,date')
               .select()
               .single();
-          return right(DailyCheckin.fromJson(response));
+          return right(DailyCheckin.fromJson(_snakeToCamel(response)));
         } catch (e2) {
           return left(Failure.server(message: e.message, code: e.code));
         }
@@ -158,7 +158,7 @@ class SupabaseCheckinRepository implements CheckinRepository {
           .lte('date', weekEnd.toIso8601String().split('T')[0]);
 
       final checkins = (response as List)
-          .map((json) => DailyCheckin.fromJson(json as Map<String, dynamic>))
+          .map((json) => DailyCheckin.fromJson(_snakeToCamel(json as Map<String, dynamic>)))
           .toList();
 
       if (checkins.isEmpty) {
@@ -199,6 +199,17 @@ class SupabaseCheckinRepository implements CheckinRepository {
         (match) => '_${match.group(0)!.toLowerCase()}',
       );
       return MapEntry(snakeKey, value);
+    });
+  }
+
+  /// Convert snake_case keys to camelCase for Dart
+  Map<String, dynamic> _snakeToCamel(Map<String, dynamic> json) {
+    return json.map((key, value) {
+      final camelKey = key.replaceAllMapped(
+        RegExp(r'_([a-z])'),
+        (match) => match.group(1)!.toUpperCase(),
+      );
+      return MapEntry(camelKey, value);
     });
   }
 }

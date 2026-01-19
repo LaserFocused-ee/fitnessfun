@@ -60,12 +60,8 @@ class RoleSwitchButton extends ConsumerWidget {
       ),
     ).then((confirmed) async {
       if ((confirmed ?? false) && context.mounted) {
-        final success = await ref.read(roleSwitcherProvider.notifier).switchRole(targetRole);
-        if (success && context.mounted) {
-          // Navigate to the appropriate home screen
-          final route = targetRole.isTrainer ? AppRoutes.trainerHome : AppRoutes.clientHome;
-          context.go(route);
-        }
+        // Just switch the role - router's redirect will handle navigation
+        await ref.read(roleSwitcherProvider.notifier).switchRole(targetRole);
       }
     });
   }

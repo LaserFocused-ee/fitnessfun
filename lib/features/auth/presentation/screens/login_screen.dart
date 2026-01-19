@@ -48,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (success && mounted) {
-      context.go(AppRoutes.clientHome);
+      context.go(AppRoutes.home);
     }
   }
 
@@ -59,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (success && mounted) {
       // User will be redirected based on auth state changes
       // The router handles navigation based on profile role
-      context.go(AppRoutes.clientHome);
+      context.go(AppRoutes.home);
     }
   }
 

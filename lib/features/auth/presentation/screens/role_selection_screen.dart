@@ -32,9 +32,9 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
     if (success) {
       // Navigate to the appropriate home based on role
       if (role == UserRole.trainer) {
-        context.go(AppRoutes.trainerHome);
+        context.go(AppRoutes.home);
       } else {
-        context.go(AppRoutes.clientHome);
+        context.go(AppRoutes.home);
       }
     }
   }

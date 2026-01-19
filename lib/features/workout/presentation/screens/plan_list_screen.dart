@@ -18,7 +18,7 @@ class PlanListScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => context.push('/trainer/plans/create'),
+            onPressed: () => context.push('/plans/create'),
             tooltip: 'Create Plan',
           ),
         ],
@@ -51,7 +51,7 @@ class PlanListScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
-                    onPressed: () => context.push('/trainer/plans/create'),
+                    onPressed: () => context.push('/plans/create'),
                     icon: const Icon(Icons.add),
                     label: const Text('Create Plan'),
                   ),
@@ -84,7 +84,7 @@ class PlanListScreen extends ConsumerWidget {
                         )
                       : null,
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/trainer/plans/${plan.id}'),
+                  onTap: () => context.push('/plans/${plan.id}'),
                 ),
               );
             },

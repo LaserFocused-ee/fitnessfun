@@ -45,10 +45,10 @@ mixin PlanExerciseRepositoryMixin {
             })
             .select()
             .single();
-        insertedSets.add(PlanExerciseSet.fromJson(snakeToCamel(setResponse)));
+        insertedSets.add(PlanExerciseSet.fromJson(snakeToCamel(setResponse as Map<String, dynamic>)));
       }
 
-      return right(PlanExercise.fromJson(snakeToCamel({
+      return right(PlanExercise.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'exercise_name': exerciseName,
       }..remove('exercises'))).copyWith(sets: insertedSets));
@@ -95,10 +95,10 @@ mixin PlanExerciseRepositoryMixin {
             })
             .select()
             .single();
-        insertedSets.add(PlanExerciseSet.fromJson(snakeToCamel(setResponse)));
+        insertedSets.add(PlanExerciseSet.fromJson(snakeToCamel(setResponse as Map<String, dynamic>)));
       }
 
-      return right(PlanExercise.fromJson(snakeToCamel({
+      return right(PlanExercise.fromJson(snakeToCamel(<String, dynamic>{
         ...response,
         'exercise_name': exerciseName,
       }..remove('exercises'))).copyWith(sets: insertedSets));

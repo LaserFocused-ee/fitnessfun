@@ -25,7 +25,7 @@ mixin ExerciseLogRepositoryMixin {
           .select()
           .single();
 
-      return right(ExerciseLog.fromJson(snakeToCamel(response)));
+      return right(ExerciseLog.fromJson(snakeToCamel(response as Map<String, dynamic>)));
     } catch (e) {
       return left(ServerFailure(message: 'Failed to save exercise log: $e'));
     }
@@ -45,7 +45,7 @@ mixin ExerciseLogRepositoryMixin {
         final planExercise = logData['plan_exercises'] as Map<String, dynamic>?;
         final exerciseName = planExercise?['exercises']?['name'] as String?;
 
-        return ExerciseLog.fromJson(snakeToCamel({
+        return ExerciseLog.fromJson(snakeToCamel(<String, dynamic>{
           ...logData,
           'exercise_name': exerciseName,
           'target_tempo': planExercise?['tempo'],

@@ -69,26 +69,32 @@ dart run build_runner build --delete-conflicting-outputs
 ### Custom Ports (5436x series)
 This project uses custom ports to avoid conflicts:
 
-| Service   | Port  |
-|-----------|-------|
-| API       | 54361 |
-| DB        | 54362 |
-| Studio    | 54363 |
-| Inbucket  | 54364 |
-| Storage   | 54365 |
-| Auth      | 54366 |
-| Realtime  | 54367 |
+| Service      | Port  |
+|--------------|-------|
+| Flutter Web  | 54300 |
+| API          | 54361 |
+| DB           | 54362 |
+| Studio       | 54363 |
+| Inbucket     | 54364 |
+| Storage      | 54365 |
+| Auth         | 54366 |
+| Realtime     | 54367 |
 
 ### Starting Development
+
+**IMPORTANT:** Always use the `/flutter-auto-reload` skill when starting Flutter for hot reload setup guidance.
+
 ```bash
 # 1. Start Supabase (in project root)
 npx supabase start
 
-# 2. Run Flutter app
-flutter run -d chrome      # Web
-flutter run -d ios         # iOS Simulator
-flutter run -d android     # Android Emulator
+# 2. Run Flutter app (ALWAYS use port 54300 for web)
+flutter run -d chrome --web-port=54300      # Web (required for OAuth redirects)
+flutter run -d ios                           # iOS Simulator
+flutter run -d android                       # Android Emulator
 ```
+
+**Note:** Port 54300 is required for web development because Supabase auth is configured with redirect URLs pointing to this port.
 
 ### Supabase Studio
 After starting, access at: http://localhost:54363

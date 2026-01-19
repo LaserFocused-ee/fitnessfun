@@ -12,6 +12,7 @@ import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/checkin/presentation/screens/checkin_form_screen.dart';
 import '../features/checkin/presentation/screens/checkin_history_screen.dart';
+import '../features/clients/presentation/screens/client_detail_screen.dart';
 import '../features/clients/presentation/screens/client_home_screen.dart';
 import '../features/clients/presentation/screens/client_list_screen.dart';
 import '../features/exercise/presentation/screens/exercise_detail_screen.dart';
@@ -24,6 +25,7 @@ import '../features/workout/presentation/screens/plan_detail_screen.dart';
 import '../features/workout/presentation/screens/plan_list_screen.dart';
 import '../features/workout/presentation/screens/workout_history_screen.dart';
 import '../features/workout/presentation/screens/workout_session_screen.dart';
+import 'home_screen.dart';
 import 'routes.dart';
 
 part 'router.g.dart';
@@ -67,15 +69,8 @@ GoRouter router(Ref ref) {
         return profile != null && profile.effectiveActiveRole == 'pending';
       }
 
-      // Helper to get home route based on active role
-      String getHomeRoute() {
-        if (profile?.effectiveActiveRole == 'trainer') {
-          return AppRoutes.trainerHome;
-        }
-        return AppRoutes.clientHome;
-      }
-
-      debugPrint('Router: wasOAuthCallback=${OAuthCallbackDetector.wasOAuthCallback}, '
+      debugPrint('Router: path=${state.uri.path}, matchedLocation=${state.matchedLocation}, '
+          'wasOAuthCallback=${OAuthCallbackDetector.wasOAuthCallback}, '
           'isAuthLoading=$isAuthLoading, isLoggedIn=$isLoggedIn, '
           'hasError=${authState.hasError}, isSplash=$isSplash');
 
@@ -112,7 +107,7 @@ GoRouter router(Ref ref) {
           if (needsRoleSelection()) {
             return AppRoutes.roleSelection;
           }
-          return getHomeRoute();
+          return AppRoutes.home;
         }
         return null; // Stay on splash while profile loads
       }
@@ -122,13 +117,13 @@ GoRouter router(Ref ref) {
         return AppRoutes.login;
       }
 
-      // If logged in and on auth route, redirect to appropriate home
+      // If logged in and on auth route, redirect to home
       if (isLoggedIn && isAuthRoute && !isProfileLoading) {
         // Check if user needs to select their role (OAuth users)
         if (needsRoleSelection()) {
           return AppRoutes.roleSelection;
         }
-        return getHomeRoute();
+        return AppRoutes.home;
       }
 
       // If user needs role selection but is not on that page, redirect them
@@ -163,25 +158,33 @@ GoRouter router(Ref ref) {
         builder: (context, state) => const AddRoleScreen(),
       ),
 
-      // Client routes
+      // Home - landing page that shows trainer/client content based on role STATE
       GoRoute(
-        path: AppRoutes.clientHome,
+        path: AppRoutes.home,
+        builder: (context, state) => const HomeScreen(),
+      ),
+
+      // Client routes (root level)
+      GoRoute(
+        path: AppRoutes.checkin,
+        builder: (context, state) => const CheckinFormScreen(),
+        routes: [
+          GoRoute(
+            path: 'history',
+            builder: (context, state) => const CheckinHistoryScreen(),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.workoutHistory,
+        builder: (context, state) => const WorkoutHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.myPlans,
         builder: (context, state) => const ClientHomeScreen(),
         routes: [
           GoRoute(
-            path: 'checkin',
-            builder: (context, state) => const CheckinFormScreen(),
-          ),
-          GoRoute(
-            path: 'checkin/history',
-            builder: (context, state) => const CheckinHistoryScreen(),
-          ),
-          GoRoute(
-            path: 'workout-history',
-            builder: (context, state) => const WorkoutHistoryScreen(),
-          ),
-          GoRoute(
-            path: 'plans/:planId',
+            path: ':planId',
             builder: (context, state) {
               final planId = state.pathParameters['planId']!;
               return PlanDetailScreen(planId: planId, isClientView: true);
@@ -205,77 +208,71 @@ GoRouter router(Ref ref) {
         ],
       ),
 
-      // Trainer routes
+      // Trainer routes (root level)
       GoRoute(
-        path: AppRoutes.trainerHome,
-        builder: (context, state) => const TrainerHomeScreen(),
+        path: AppRoutes.videos,
+        builder: (context, state) => const VideoLibraryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.clients,
+        builder: (context, state) => const ClientListScreen(),
         routes: [
           GoRoute(
-            path: 'videos',
-            builder: (context, state) => const VideoLibraryScreen(),
+            path: ':clientId',
+            builder: (context, state) {
+              final clientId = state.pathParameters['clientId']!;
+              return ClientDetailScreen(clientId: clientId);
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.exercises,
+        builder: (context, state) => const ExerciseLibraryScreen(),
+        routes: [
+          GoRoute(
+            path: 'create',
+            builder: (context, state) => const ExerciseFormScreen(),
           ),
           GoRoute(
-            path: 'clients',
-            builder: (context, state) => const ClientListScreen(),
+            path: ':exerciseId',
+            builder: (context, state) {
+              final exerciseId = state.pathParameters['exerciseId']!;
+              return ExerciseDetailScreen(exerciseId: exerciseId);
+            },
             routes: [
               GoRoute(
-                path: ':clientId',
-                builder: (context, state) {
-                  // TODO: Create ClientDetailScreen for trainer to view client
-                  return const _PlaceholderScreen(title: 'Client Details');
-                },
-              ),
-            ],
-          ),
-          GoRoute(
-            path: 'exercises',
-            builder: (context, state) => const ExerciseLibraryScreen(),
-            routes: [
-              GoRoute(
-                path: 'create',
-                builder: (context, state) => const ExerciseFormScreen(),
-              ),
-              GoRoute(
-                path: ':exerciseId',
+                path: 'edit',
                 builder: (context, state) {
                   final exerciseId = state.pathParameters['exerciseId']!;
-                  return ExerciseDetailScreen(exerciseId: exerciseId);
+                  return ExerciseFormScreen(exerciseId: exerciseId);
                 },
-                routes: [
-                  GoRoute(
-                    path: 'edit',
-                    builder: (context, state) {
-                      final exerciseId = state.pathParameters['exerciseId']!;
-                      return ExerciseFormScreen(exerciseId: exerciseId);
-                    },
-                  ),
-                ],
               ),
             ],
           ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.plans,
+        builder: (context, state) => const PlanListScreen(),
+        routes: [
           GoRoute(
-            path: 'plans',
-            builder: (context, state) => const PlanListScreen(),
+            path: 'create',
+            builder: (context, state) => const PlanBuilderScreen(),
+          ),
+          GoRoute(
+            path: ':planId',
+            builder: (context, state) {
+              final planId = state.pathParameters['planId']!;
+              return PlanDetailScreen(planId: planId);
+            },
             routes: [
               GoRoute(
-                path: 'create',
-                builder: (context, state) => const PlanBuilderScreen(),
-              ),
-              GoRoute(
-                path: ':planId',
+                path: 'edit',
                 builder: (context, state) {
                   final planId = state.pathParameters['planId']!;
-                  return PlanDetailScreen(planId: planId);
+                  return PlanBuilderScreen(planId: planId);
                 },
-                routes: [
-                  GoRoute(
-                    path: 'edit',
-                    builder: (context, state) {
-                      final planId = state.pathParameters['planId']!;
-                      return PlanBuilderScreen(planId: planId);
-                    },
-                  ),
-                ],
               ),
             ],
           ),

@@ -103,7 +103,7 @@ class ClientListScreen extends ConsumerWidget {
                 ...activeClients.map((client) => _ClientCard(
                       client: client,
                       onTap: () =>
-                          context.push('/trainer/clients/${client.clientId}'),
+                          context.push('/clients/${client.clientId}'),
                     )),
               ],
             ],

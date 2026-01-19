@@ -36,7 +36,7 @@ class PlanDetailScreen extends ConsumerWidget {
               if (!isClientView) ...[
                 IconButton(
                   icon: const Icon(Icons.edit),
-                  onPressed: () => context.push('/trainer/plans/$planId/edit'),
+                  onPressed: () => context.push('/plans/$planId/edit'),
                   tooltip: 'Edit Plan',
                 ),
                 PopupMenuButton(
@@ -683,7 +683,7 @@ class _VideoPlayerState extends State<_VideoPlayer> {
 
 /// Build reps label from exercise sets (shows first set's reps range)
 String _buildRepsLabel(dynamic exercise) {
-  if (exercise.sets.isEmpty) return '';
+  if ((exercise.sets as List).isEmpty) return '';
   final firstSet = exercise.sets.first;
   if (firstSet.repsMax != null && firstSet.repsMax != firstSet.reps) {
     return '${firstSet.reps}-${firstSet.repsMax} reps';
