@@ -15,7 +15,7 @@ class ClientHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider).valueOrNull;
-    final trainerAsync = ref.watch(clientTrainerProvider);
+    final trainersAsync = ref.watch(clientTrainersProvider);
     final invitationsAsync = ref.watch(pendingInvitationsProvider);
     final plansAsync = ref.watch(clientPlansProvider);
     final activeWorkout = ref.watch(activeWorkoutNotifierProvider).valueOrNull;
@@ -82,16 +82,16 @@ class ClientHomeScreen extends ConsumerWidget {
               error: (_, __) => const SizedBox.shrink(),
             ),
 
-            // My Trainer section
+            // My Trainers section
             _SectionTitle(
-              title: 'My Trainer',
-              icon: Icons.person,
+              title: 'My Trainers',
+              icon: Icons.people,
               color: colorScheme.primary,
             ),
             const SizedBox(height: 8),
-            trainerAsync.when(
-              data: (trainer) {
-                if (trainer == null) {
+            trainersAsync.when(
+              data: (trainers) {
+                if (trainers.isEmpty) {
                   return Card(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -128,19 +128,24 @@ class ClientHomeScreen extends ConsumerWidget {
                   );
                 }
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.person,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: Text(trainer.trainerName ?? 'Your Trainer'),
-                    subtitle: Text(trainer.trainerEmail ?? ''),
-                    trailing: const Icon(Icons.chevron_right),
-                  ),
+                return Column(
+                  children: trainers
+                      .map((trainer) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: colorScheme.primaryContainer,
+                                child: Icon(
+                                  Icons.person,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                              title:
+                                  Text(trainer.trainerName ?? 'Your Trainer'),
+                              subtitle: Text(trainer.trainerEmail ?? ''),
+                            ),
+                          ))
+                      .toList(),
                 );
               },
               loading: () => const Card(

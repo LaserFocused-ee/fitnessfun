@@ -92,21 +92,21 @@ Future<List<Profile>> searchClients(
 
 // ===== For Clients =====
 
-/// Provides the client's current trainer
+/// Provides the client's trainers (can have multiple)
 @riverpod
-Future<TrainerClient?> clientTrainer(ClientTrainerRef ref) async {
+Future<List<TrainerClient>> clientTrainers(ClientTrainersRef ref) async {
   final repo = ref.watch(clientRepositoryProvider);
   final profile = ref.watch(currentProfileProvider).valueOrNull;
 
   if (profile == null || profile.effectiveActiveRole != 'client') {
-    return null;
+    return [];
   }
 
-  final result = await repo.getClientTrainer(profile.id);
+  final result = await repo.getClientTrainers(profile.id);
 
   return result.fold(
     (failure) => throw Exception(failure.displayMessage),
-    (trainer) => trainer,
+    (trainers) => trainers,
   );
 }
 
@@ -147,7 +147,7 @@ class InvitationNotifier extends _$InvitationNotifier {
 
     // Refresh data
     ref.invalidate(pendingInvitationsProvider);
-    ref.invalidate(clientTrainerProvider);
+    ref.invalidate(clientTrainersProvider);
 
     return result;
   }
@@ -181,7 +181,7 @@ class InvitationNotifier extends _$InvitationNotifier {
     );
 
     // Refresh data
-    ref.invalidate(clientTrainerProvider);
+    ref.invalidate(clientTrainersProvider);
 
     return result;
   }

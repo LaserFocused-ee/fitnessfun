@@ -26,8 +26,8 @@ abstract class ClientRepository {
 
   // ===== For Clients =====
 
-  /// Get the client's trainer (active relationship)
-  Future<Either<Failure, TrainerClient?>> getClientTrainer(String clientId);
+  /// Get the client's trainers (active relationships)
+  Future<Either<Failure, List<TrainerClient>>> getClientTrainers(String clientId);
 
   /// Get pending invitations for a client
   Future<Either<Failure, List<TrainerClient>>> getPendingInvitations(

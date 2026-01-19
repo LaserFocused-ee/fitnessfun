@@ -153,7 +153,7 @@ class SupabaseClientRepository implements ClientRepository {
   // ===== For Clients =====
 
   @override
-  Future<Either<Failure, TrainerClient?>> getClientTrainer(
+  Future<Either<Failure, List<TrainerClient>>> getClientTrainers(
       String clientId) async {
     try {
       final response = await _client
@@ -162,21 +162,22 @@ class SupabaseClientRepository implements ClientRepository {
               '*, profiles!trainer_clients_trainer_id_fkey(full_name, email)')
           .eq('client_id', clientId)
           .eq('status', 'active')
-          .maybeSingle();
+          .order('created_at', ascending: false);
 
-      if (response == null) {
-        return right(null);
-      }
+      final trainers = (response as List).map((json) {
+        final data = json as Map<String, dynamic>;
+        final trainerProfile = data['profiles'] as Map<String, dynamic>?;
 
-      final trainerProfile = response['profiles'] as Map<String, dynamic>?;
+        return TrainerClient.fromJson(_snakeToCamel({
+          ...data,
+          'trainer_name': trainerProfile?['full_name'],
+          'trainer_email': trainerProfile?['email'],
+        }..remove('profiles')));
+      }).toList();
 
-      return right(TrainerClient.fromJson(_snakeToCamel({
-        ...response,
-        'trainer_name': trainerProfile?['full_name'],
-        'trainer_email': trainerProfile?['email'],
-      }..remove('profiles'))));
+      return right(trainers);
     } catch (e) {
-      return left(ServerFailure(message: 'Failed to load trainer: $e'));
+      return left(ServerFailure(message: 'Failed to load trainers: $e'));
     }
   }
 
