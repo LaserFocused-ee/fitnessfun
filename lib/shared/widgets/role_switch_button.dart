@@ -26,7 +26,7 @@ class RoleSwitchButton extends ConsumerWidget {
 
         return IconButton(
           icon: Icon(
-            targetRole.isTrainer ? Icons.school : Icons.person,
+            targetRole.isTrainer ? Icons.fitness_center : Icons.people,
           ),
           tooltip: 'Switch to ${targetRole.name}',
           onPressed: () => _showSwitchDialog(context, ref, targetRole),
