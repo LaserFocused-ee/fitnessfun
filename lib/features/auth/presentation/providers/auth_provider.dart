@@ -22,7 +22,12 @@ AuthRepository authRepository(AuthRepositoryRef ref) {
 Stream<User?> authState(AuthStateRef ref) {
   final repo = ref.watch(authRepositoryProvider);
   // Supabase's onAuthStateChange emits the current state immediately on subscribe
-  return repo.authStateChanges;
+  // Invalidate profile on every auth state change to ensure fresh data
+  return repo.authStateChanges.map((user) {
+    // Invalidate profile to force re-fetch with fresh roles
+    Future.microtask(() => ref.invalidate(currentProfileProvider));
+    return user;
+  });
 }
 
 /// Provides the current user's profile (null if not logged in).
