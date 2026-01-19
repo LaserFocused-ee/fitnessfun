@@ -56,12 +56,12 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
       builder: (context) => const _ExercisePickerDialog(),
     );
 
-    if (exercise != null) {
-      final notifier = ref.read(planFormNotifierProvider.notifier);
+    if (exercise != null && mounted) {
       final currentExercises =
           ref.read(planFormNotifierProvider).exercises.length;
 
-      notifier.addExercise(PlanExercise.empty(
+      // Create a new plan exercise with defaults from the exercise
+      final newPlanExercise = PlanExercise.empty(
         planId: '',
         exerciseId: exercise.id,
         exerciseName: exercise.name,
@@ -69,7 +69,18 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
         exerciseTempo: exercise.tempo,
         exerciseNotes: exercise.instructions,
         orderIndex: currentExercises,
-      ));
+      );
+
+      // Immediately show the edit dialog to fill in initial details
+      final configured = await showDialog<PlanExercise>(
+        context: context,
+        builder: (context) => _ExerciseEditDialog(exercise: newPlanExercise),
+      );
+
+      // Only add if they saved (didn't cancel)
+      if (configured != null) {
+        ref.read(planFormNotifierProvider.notifier).addExercise(configured);
+      }
     }
   }
 
