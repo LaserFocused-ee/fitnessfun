@@ -10,6 +10,8 @@ import '../../../../app/routes.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../shared/services/video_cache_service.dart';
 import '../../../../shared/widgets/app_back_button.dart';
+import '../../domain/entities/workout_plan.dart';
+import '../providers/plan_export_provider.dart';
 import '../providers/workout_provider.dart';
 
 class PlanDetailScreen extends ConsumerWidget {
@@ -50,6 +52,14 @@ class PlanDetailScreen extends ConsumerWidget {
                 PopupMenuButton(
                   itemBuilder: (context) => [
                     const PopupMenuItem(
+                      value: 'export',
+                      child: ListTile(
+                        leading: Icon(Icons.download),
+                        title: Text('Export to Excel'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const PopupMenuItem(
                       value: 'assign',
                       child: ListTile(
                         leading: Icon(Icons.person_add),
@@ -67,7 +77,9 @@ class PlanDetailScreen extends ConsumerWidget {
                     ),
                   ],
                   onSelected: (value) async {
-                    if (value == 'delete') {
+                    if (value == 'export') {
+                      await _exportPlan(context, ref, plan);
+                    } else if (value == 'delete') {
                       await _deletePlan(context, ref);
                     } else if (value == 'assign') {
                       _showAssignDialog(context, ref);
@@ -404,6 +416,62 @@ class PlanDetailScreen extends ConsumerWidget {
         title: title,
         videoUrl: videoUrl,
       ),
+    );
+  }
+
+  Future<void> _exportPlan(
+    BuildContext context,
+    WidgetRef ref,
+    WorkoutPlan plan,
+  ) async {
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Exporting...'),
+          ],
+        ),
+        duration: Duration(seconds: 30),
+      ),
+    );
+
+    final result = await ref.read(planExportNotifierProvider.notifier).exportPlan(plan);
+
+    if (!context.mounted) return;
+
+    // Clear the loading snackbar
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    result.fold(
+      (failure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(failure.displayMessage),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      },
+      (fileName) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported: $fileName'),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      },
     );
   }
 }

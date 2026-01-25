@@ -56,6 +56,10 @@ dependencies:
   path: ^1.9.1
   web: ^1.1.1
 
+  # XLSX Export
+  excel: ^4.0.3
+  file_saver: ^0.2.14
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
